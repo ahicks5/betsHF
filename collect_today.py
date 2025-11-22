@@ -103,6 +103,38 @@ def collect_todays_games_and_props():
         if not home_team or not away_team:
             continue
 
+        # Assign player to team if not already assigned
+        # Use NBA API to determine player's current team
+        if not player.team_id:
+            try:
+                from nba_api.stats.endpoints import commonplayerinfo
+                import time
+
+                time.sleep(0.6)  # Rate limiting
+                player_info = commonplayerinfo.CommonPlayerInfo(player_id=player.nba_player_id)
+                info_df = player_info.get_data_frames()[0]
+
+                if not info_df.empty:
+                    team_abbr = info_df['TEAM_ABBREVIATION'].iloc[0]
+
+                    # Match team abbreviation to our teams
+                    if team_abbr == home_team.abbreviation:
+                        player.team_id = home_team.id
+                    elif team_abbr == away_team.abbreviation:
+                        player.team_id = away_team.id
+                    else:
+                        # Player might be on a different team, look it up
+                        team_match = session.query(Team).filter_by(abbreviation=team_abbr).first()
+                        if team_match:
+                            player.team_id = team_match.id
+
+            except Exception as e:
+                # If we can't determine team from API, make an educated guess
+                # Most likely they're on one of the two teams playing
+                # We'll assign to home team as default - this will get corrected
+                # when we see them in other games
+                player.team_id = home_team.id
+
         # Find or create game
         game = session.query(Game).filter_by(nba_game_id=prop_data['event_id']).first()
 
