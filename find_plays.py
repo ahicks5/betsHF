@@ -87,16 +87,33 @@ def analyze_all_props():
 
     close_session()
 
-    # Deduplicate props - keep only ONE prop per player+stat (the one with highest z-score)
+    # Deduplicate props - keep only ONE prop per player+stat
+    # Pick the best line for the bet direction:
+    # - For OVER: pick LOWEST line (easier to hit)
+    # - For UNDER: pick HIGHEST line (easier to hit)
     player_stat_best = {}
 
     for analysis in all_analyses:
         key = (analysis['player_name'], analysis['stat_type'])
-        abs_z = abs(analysis['z_score'])
 
-        # Keep the one with highest absolute z-score
-        if key not in player_stat_best or abs_z > abs(player_stat_best[key]['z_score']):
+        if key not in player_stat_best:
             player_stat_best[key] = analysis
+        else:
+            current = player_stat_best[key]
+            recommendation = analysis['recommendation']
+
+            # Pick better line based on recommendation
+            if recommendation == "OVER":
+                # For OVER, lower line is better
+                if analysis['line_value'] < current['line_value']:
+                    player_stat_best[key] = analysis
+            elif recommendation == "UNDER":
+                # For UNDER, higher line is better
+                if analysis['line_value'] > current['line_value']:
+                    player_stat_best[key] = analysis
+            else:
+                # For NO PLAY, just keep first one
+                pass
 
     # Convert back to lists
     all_analyses = list(player_stat_best.values())
