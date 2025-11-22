@@ -98,8 +98,10 @@ class NBAApiClient:
             season = self.current_season
 
         try:
-            # Find team ID
-            team_list = teams.find_teams_by_abbreviation(team_abbr)
+            # Find team ID by abbreviation
+            all_teams = teams.get_teams()
+            team_list = [t for t in all_teams if t['abbreviation'] == team_abbr]
+
             if not team_list:
                 return {}
 
