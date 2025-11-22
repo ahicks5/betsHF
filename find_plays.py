@@ -228,7 +228,7 @@ def analyze_all_props():
 
     for i, a in enumerate(analyses[:5], 1):
         print(f"{i}. {a['player_name']} - {a['stat_type']} {a['recommendation']} {a['line_value']}")
-        print(f"   Expected: {a['expected_value']} (Season: {a['season_avg']}, L5: {a['recent_avg']}, Opp: {a['opponent_avg']})")
+        print(f"   Expected: {a['expected_value']} (Season: {a['season_avg']}, L5: {a['recent_avg']})")
         print(f"   Deviation: {a['deviation']} (Z-Score: {a['z_score']})")
         print(f"   Confidence: {a['confidence']}")
         print(f"   Bookmaker: {a['bookmaker']}")
