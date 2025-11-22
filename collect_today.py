@@ -35,7 +35,7 @@ def initialize_teams_and_players():
             session.add(team)
 
     session.commit()
-    print(f" Loaded {len(teams_data)} teams")
+    print(f"[OK] Loaded {len(teams_data)} teams")
 
     print("\nLoading players...")
     players_data = nba_client.get_all_players()
@@ -52,7 +52,7 @@ def initialize_teams_and_players():
             session.add(player)
 
     session.commit()
-    print(f" Loaded {len(players_data)} active players")
+    print(f"[OK] Loaded {len(players_data)} active players")
 
     close_session()
 
@@ -89,7 +89,7 @@ def collect_todays_games_and_props():
             ).first()
 
         if not player:
-            print(f"  Player not found: {prop_data['player_name']}")
+            print(f"[WARNING] Player not found: {prop_data['player_name']}")
             continue
 
         # For now, create a simple game record (we can enhance this later)
@@ -132,7 +132,7 @@ def collect_todays_games_and_props():
         props_stored += 1
 
     session.commit()
-    print(f"\n Stored {props_stored} prop lines")
+    print(f"\n[OK] Stored {props_stored} prop lines")
 
     close_session()
 
