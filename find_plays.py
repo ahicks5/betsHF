@@ -6,7 +6,7 @@ Sorted by strongest deviation (highest z-score)
 """
 from database.db import get_session, close_session
 from database.models import PropLine, Player, Game, Team
-from analyzer import PropAnalyzer
+from cached_analyzer import CachedPropAnalyzer
 from tabulate import tabulate
 
 
@@ -28,7 +28,7 @@ def get_opponent_abbr(session, game, player):
 def analyze_all_props():
     """Analyze all latest props and display results"""
     session = get_session()
-    analyzer = PropAnalyzer()
+    analyzer = CachedPropAnalyzer()
 
     print("=== Analyzing Today's Props ===\n")
 
@@ -86,6 +86,11 @@ def analyze_all_props():
             continue
 
     close_session()
+
+    # Print cache statistics
+    cache_stats = analyzer.get_cache_stats()
+    print(f"Cache Stats: {cache_stats['players_cached']} players, {cache_stats['teams_cached']} teams cached")
+    print()
 
     # Print summary statistics
     print(f"Analysis Summary:")
