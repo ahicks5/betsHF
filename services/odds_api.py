@@ -39,7 +39,7 @@ class OddsApiClient:
             response.raise_for_status()
             games = response.json()
 
-            print(f" Found {len(games)} NBA games")
+            print(f"[OK] Found {len(games)} NBA games")
             return games
 
         except requests.exceptions.RequestException as e:
@@ -151,7 +151,7 @@ class OddsApiClient:
 
             all_props.extend(props)
 
-        print(f"\n Total props collected: {len(all_props)}")
+        print(f"\n[OK] Total props collected: {len(all_props)}")
         return all_props
 
 

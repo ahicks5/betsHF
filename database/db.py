@@ -21,7 +21,7 @@ SessionLocal = scoped_session(sessionmaker(bind=engine))
 def init_db():
     """Initialize the database, creating all tables"""
     Base.metadata.create_all(engine)
-    print(f" Database initialized: {DB_FILE}")
+    print(f"[OK] Database initialized: {DB_FILE}")
 
 
 def get_session():
