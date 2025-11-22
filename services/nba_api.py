@@ -109,24 +109,25 @@ class NBAApiClient:
 
             time.sleep(0.6)  # Rate limiting
 
-            # Get games for this team
-            gamefinder = leaguegamefinder.LeagueGameFinder(
-                team_id_nullable=team_id,
-                season_nullable=season
+            # Use TeamGameLog to get opponent stats
+            from nba_api.stats.endpoints import teamgamelog
+
+            gamelog = teamgamelog.TeamGameLog(
+                team_id=team_id,
+                season=season
             )
-            games_df = gamefinder.get_data_frames()[0]
+            games_df = gamelog.get_data_frames()[0]
 
             if games_df.empty:
                 return {}
 
-            # Calculate opponent averages (what defense allows)
-            # Note: In LeagueGameFinder, each game appears twice (once per team)
-            # We want the opponent's stats when playing against this team
+            # TeamGameLog has OPP_PTS columns for opponent stats
+            # These are what the team's defense ALLOWED
             opp_stats = {
-                'PTS': games_df['PTS'].mean(),  # Points allowed
-                'REB': games_df['REB'].mean(),  # Rebounds allowed
-                'AST': games_df['AST'].mean(),  # Assists allowed
-                'FG3M': games_df['FG3M'].mean(),  # Threes allowed
+                'PTS': games_df['OPP_PTS'].mean() if 'OPP_PTS' in games_df.columns else 0,
+                'REB': games_df['OPP_REB'].mean() if 'OPP_REB' in games_df.columns else 0,
+                'AST': games_df['OPP_AST'].mean() if 'OPP_AST' in games_df.columns else 0,
+                'FG3M': games_df['OPP_FG3M'].mean() if 'OPP_FG3M' in games_df.columns else 0,
                 'games_played': len(games_df)
             }
 
