@@ -51,7 +51,10 @@ class CachedPropAnalyzer:
         """
         Calculate expected stat value using weighted average with caching
 
-        Formula: 40% season avg + 40% L5 avg + 20% opponent defense
+        Formula: 50% season avg + 50% L5 avg
+
+        Note: Opponent defense component removed because NBA API doesn't provide
+        reliable player-level opponent stats (only team totals available)
 
         Returns: (expected_value, std_dev, components_dict)
         """
@@ -62,17 +65,13 @@ class CachedPropAnalyzer:
         recent_avg = player_stats['recent'].get(stat_type, 0)
         std_dev = player_stats['std_devs'].get(stat_type, 0)
 
-        # Get cached opponent defense
-        opp_defense = self.get_cached_team_defense(opponent_abbr)
-        opp_avg = opp_defense.get(stat_type, 0)
-
-        # Weighted average: 40/40/20
-        expected = (season_avg * 0.4) + (recent_avg * 0.4) + (opp_avg * 0.2)
+        # Weighted average: 50% season, 50% recent (L5)
+        # This balances long-term performance with recent form
+        expected = (season_avg * 0.5) + (recent_avg * 0.5)
 
         components = {
             'season_avg': season_avg,
             'recent_avg': recent_avg,
-            'opponent_avg': opp_avg,
             'std_dev': std_dev
         }
 
@@ -129,7 +128,6 @@ class CachedPropAnalyzer:
             'confidence': confidence,
             'season_avg': round(components['season_avg'], 2),
             'recent_avg': round(components['recent_avg'], 2),
-            'opponent_avg': round(components['opponent_avg'], 2),
             'std_dev': round(components['std_dev'], 2)
         }
 

@@ -8,13 +8,14 @@ The analyzer uses a straightforward approach:
 
 1. **Player's Season Average** - What the player typically does all season
 2. **Player's Last 5 Games** - Recent form and trends
-3. **Opponent's Defense** - What the defense typically allows
 
 ### Weighted Formula
 
 ```
-Expected Value = (40% × Season Avg) + (40% × L5 Avg) + (20% × Opponent Defense)
+Expected Value = (50% × Season Avg) + (50% × L5 Avg)
 ```
+
+**Note:** Opponent defense component was removed because NBA API only provides team-level defensive stats (not player-level). Mixing team totals with individual player stats created inaccurate results.
 
 ### Theory
 
@@ -118,7 +119,7 @@ This will:
 === Top 5 Plays (Details) ===
 
 1. LeBron James - PTS UNDER 25.5
-   Expected: 28.3 (Season: 27.5, L5: 30.2, Opp: 26.8)
+   Expected: 28.3 (Season: 27.5, L5: 30.2)
    Deviation: -2.8 (Z-Score: -1.2)
    Confidence: High
    Bookmaker: draftkings
@@ -142,19 +143,22 @@ This will:
 
 ### Adjust Weighted Formula
 
-Edit `analyzer.py`, line 46:
+Edit `cached_analyzer.py`, line 70:
 
 ```python
-# Current: 40/40/20
-expected = (season_avg * 0.4) + (recent_avg * 0.4) + (opp_avg * 0.2)
+# Current: 50/50
+expected = (season_avg * 0.5) + (recent_avg * 0.5)
 
-# More weight on recent form: 30/50/20
-expected = (season_avg * 0.3) + (recent_avg * 0.5) + (opp_avg * 0.2)
+# More weight on season average: 60/40
+expected = (season_avg * 0.6) + (recent_avg * 0.4)
+
+# More weight on recent form: 40/60
+expected = (season_avg * 0.4) + (recent_avg * 0.6)
 ```
 
 ### Change Recent Games Window
 
-Edit `analyzer.py`, line 38:
+Edit `cached_analyzer.py`, line 24:
 
 ```python
 # Current: Last 5 games
@@ -166,12 +170,13 @@ recent_stats = self.nba_client.get_player_recent_stats(player_id, 10)
 
 ### Adjust Z-Score Thresholds
 
-Edit `analyzer.py`, lines 91-102:
+Edit `cached_analyzer.py`, lines 108-119:
 
 ```python
 # Current thresholds
 if abs_z < 0.5:
     recommendation = "NO PLAY"
+    confidence = "N/A"
 elif abs_z < 1.0:
     recommendation = "UNDER" if deviation < 0 else "OVER"
     confidence = "Medium"
@@ -182,6 +187,7 @@ else:
 # More conservative (only strong signals)
 if abs_z < 1.0:
     recommendation = "NO PLAY"
+    confidence = "N/A"
 else:
     recommendation = "UNDER" if deviation < 0 else "OVER"
     confidence = "High"
