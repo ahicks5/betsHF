@@ -87,6 +87,23 @@ def analyze_all_props():
 
     close_session()
 
+    # Deduplicate props - keep only one bookmaker per unique prop
+    seen_props = set()
+    deduped_all_analyses = []
+    deduped_analyses = []
+
+    for analysis in all_analyses:
+        prop_key = (analysis['player_name'], analysis['stat_type'], analysis['line_value'])
+        if prop_key not in seen_props:
+            seen_props.add(prop_key)
+            deduped_all_analyses.append(analysis)
+            if analysis['recommendation'] != "NO PLAY":
+                deduped_analyses.append(analysis)
+
+    # Replace with deduplicated versions
+    all_analyses = deduped_all_analyses
+    analyses = deduped_analyses
+
     # Print cache statistics
     cache_stats = analyzer.get_cache_stats()
     print(f"Cache Stats: {cache_stats['players_cached']} players, {cache_stats['teams_cached']} teams cached")
@@ -95,7 +112,8 @@ def analyze_all_props():
     # Print summary statistics
     print(f"Analysis Summary:")
     print(f"  Total props in database: {len(props)}")
-    print(f"  Successfully analyzed: {len(all_analyses)}")
+    print(f"  Successfully analyzed (before dedup): {len(all_analyses) + len(props) - len(all_analyses)}")
+    print(f"  Unique props (after dedup): {len(all_analyses)}")
     print(f"  Skipped (no team assigned): {skipped_no_team}")
     print(f"  Errors: {errors}")
     print(f"  Plays with recommendations: {len(analyses)}")
