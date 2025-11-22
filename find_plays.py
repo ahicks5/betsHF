@@ -87,22 +87,20 @@ def analyze_all_props():
 
     close_session()
 
-    # Deduplicate props - keep only one bookmaker per unique prop
-    seen_props = set()
-    deduped_all_analyses = []
-    deduped_analyses = []
+    # Deduplicate props - keep only ONE prop per player+stat (the one with highest z-score)
+    player_stat_best = {}
 
     for analysis in all_analyses:
-        prop_key = (analysis['player_name'], analysis['stat_type'], analysis['line_value'])
-        if prop_key not in seen_props:
-            seen_props.add(prop_key)
-            deduped_all_analyses.append(analysis)
-            if analysis['recommendation'] != "NO PLAY":
-                deduped_analyses.append(analysis)
+        key = (analysis['player_name'], analysis['stat_type'])
+        abs_z = abs(analysis['z_score'])
 
-    # Replace with deduplicated versions
-    all_analyses = deduped_all_analyses
-    analyses = deduped_analyses
+        # Keep the one with highest absolute z-score
+        if key not in player_stat_best or abs_z > abs(player_stat_best[key]['z_score']):
+            player_stat_best[key] = analysis
+
+    # Convert back to lists
+    all_analyses = list(player_stat_best.values())
+    analyses = [a for a in all_analyses if a['recommendation'] != "NO PLAY"]
 
     # Print cache statistics
     cache_stats = analyzer.get_cache_stats()
