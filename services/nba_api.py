@@ -13,7 +13,7 @@ class NBAApiClient:
     """Client for fetching NBA stats and data"""
 
     def __init__(self):
-        self.current_season = "2024-25"
+        self.current_season = "2025-26"
 
     def get_all_teams(self):
         """Get all NBA teams"""
