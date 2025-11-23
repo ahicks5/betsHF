@@ -37,9 +37,11 @@ betsHF/
 ├── services/
 │   ├── nba_api.py         # NBA API client for stats
 │   └── odds_api.py        # Odds API client for props
-├── analyzer.py            # Core stats analyzer
-├── collect_today.py       # Data collection script
-├── find_plays.py          # Play finder and analyzer
+├── scripts/
+│   ├── collect_today.py   # Data collection script
+│   ├── find_plays.py      # Play finder and analyzer
+│   └── update_player_teams.py  # Team assignment utility
+├── cached_analyzer.py     # Core stats analyzer with caching
 ├── .env                   # API keys (not committed)
 └── README.md              # This file
 ```
@@ -82,7 +84,7 @@ This creates the `props.db` SQLite database with all necessary tables.
 **Step 1: Collect Today's Data**
 
 ```bash
-python collect_today.py
+python scripts/collect_today.py
 ```
 
 This will:
@@ -95,7 +97,7 @@ This will:
 **Step 2: Find Plays**
 
 ```bash
-python find_plays.py
+python scripts/find_plays.py
 ```
 
 This will:
@@ -103,6 +105,7 @@ This will:
 - Calculate expected values using our formula
 - Compute z-scores (deviation strength)
 - Show recommendations sorted by strongest signal
+- Export detailed CSV with calculation steps for diagnostics
 
 ### Sample Output
 

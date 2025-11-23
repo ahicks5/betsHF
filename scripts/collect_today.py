@@ -7,6 +7,12 @@ Steps:
 3. Fetch all player props for today's games
 4. Store in database
 """
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from database.db import init_db, get_session, close_session
 from database.models import Team, Player, Game, PropLine
 from services.nba_api import NBAApiClient
