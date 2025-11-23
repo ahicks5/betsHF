@@ -4,6 +4,12 @@ Find Today's Best Plays
 Analyzes all collected props and shows recommendations
 Sorted by strongest deviation (highest z-score)
 """
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from database.db import get_session, close_session
 from database.models import PropLine, Player, Game, Team
 from cached_analyzer import CachedPropAnalyzer

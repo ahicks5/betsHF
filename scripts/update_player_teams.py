@@ -4,6 +4,12 @@ Update Player Teams
 This script assigns teams to players that don't have them yet.
 Uses NBA API to get current team information.
 """
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from database.db import get_session, close_session
 from database.models import Player, Team
 from nba_api.stats.endpoints import commonplayerinfo
