@@ -8,6 +8,8 @@ from database.db import get_session, close_session
 from database.models import PropLine, Player, Game, Team
 from cached_analyzer import CachedPropAnalyzer
 from tabulate import tabulate
+import csv
+from datetime import datetime
 
 
 def get_opponent_abbr(session, game, player):
@@ -23,6 +25,63 @@ def get_opponent_abbr(session, game, player):
         return game.away_team.abbreviation
     else:
         return game.home_team.abbreviation
+
+
+def export_detailed_csv(analyses, filename=None):
+    """
+    Export all analysis details to CSV showing calculation steps
+
+    This helps diagnose issues by showing exactly how expected values are calculated
+    """
+    if filename is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"analysis_details_{timestamp}.csv"
+
+    with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = [
+            'Player',
+            'Stat',
+            'Line',
+            'Season_Avg',
+            'L5_Avg',
+            'Formula',
+            'Expected',
+            'Std_Dev',
+            'Deviation',
+            'Z_Score',
+            'Recommendation',
+            'Confidence',
+            'Bookmaker',
+            'Over_Odds',
+            'Under_Odds'
+        ]
+
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for a in analyses:
+            # Show the formula calculation
+            formula = f"({a['season_avg']} × 0.5) + ({a['recent_avg']} × 0.5) = {a['expected_value']}"
+
+            writer.writerow({
+                'Player': a['player_name'],
+                'Stat': a['stat_type'],
+                'Line': a['line_value'],
+                'Season_Avg': a['season_avg'],
+                'L5_Avg': a['recent_avg'],
+                'Formula': formula,
+                'Expected': a['expected_value'],
+                'Std_Dev': a['std_dev'],
+                'Deviation': a['deviation'],
+                'Z_Score': a['z_score'],
+                'Recommendation': a['recommendation'],
+                'Confidence': a['confidence'],
+                'Bookmaker': a['bookmaker'],
+                'Over_Odds': a.get('over_odds', ''),
+                'Under_Odds': a.get('under_odds', '')
+            })
+
+    return filename
 
 
 def analyze_all_props():
@@ -137,6 +196,11 @@ def analyze_all_props():
     # Sort by absolute z-score (strongest deviation first)
     analyses.sort(key=lambda x: abs(x['z_score']), reverse=True)
     all_analyses.sort(key=lambda x: abs(x['z_score']), reverse=True)
+
+    # Export detailed CSV for diagnostics
+    csv_filename = export_detailed_csv(all_analyses)
+    print(f"[OK] Exported detailed analysis to: {csv_filename}")
+    print()
 
     # Display top 20 props regardless of recommendation
     print("=== Top 20 Props by Z-Score (All Props) ===\n")
