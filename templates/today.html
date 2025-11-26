@@ -8,6 +8,16 @@
 <div class="filters">
     <form method="get">
         <div>
+            <label>Game Status:</label>
+            <select name="game_status" onchange="this.form.submit()">
+                <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All Games</option>
+                <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
+                <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live</option>
+                <option value="completed" {% if game_status_filter == 'completed' %}selected{% endif %}>Completed</option>
+            </select>
+        </div>
+
+        <div>
             <label>Confidence:</label>
             <select name="confidence" onchange="this.form.submit()">
                 <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
@@ -41,33 +51,46 @@
     </form>
 </div>
 
-{% if plays %}
+{% if plays_with_games %}
 <div class="card">
-    <h3>{{ plays|length }} Plays Found</h3>
+    <h3>{{ plays_with_games|length }} Plays Found</h3>
 
     <table>
         <thead>
             <tr>
+                <th>Game Time</th>
+                <th>Status</th>
                 <th>Player</th>
                 <th>Stat</th>
                 <th>Line</th>
                 <th>Expected</th>
-                <th>Deviation</th>
                 <th>Z-Score</th>
                 <th>Play</th>
                 <th>Confidence</th>
                 <th>Odds</th>
-                <th>Bookmaker</th>
             </tr>
         </thead>
         <tbody>
-            {% for play in plays %}
-            <tr>
+            {% for play, game in plays_with_games %}
+            {% set status = game|game_status %}
+            <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
+                <td style="white-space: nowrap;">
+                    {{ game.game_date.strftime('%I:%M %p') }}<br>
+                    <small style="color: #7f8c8d;">{{ game|time_until }}</small>
+                </td>
+                <td>
+                    {% if status == 'upcoming' %}
+                        <span class="badge" style="background: #3498db; color: white;">Upcoming</span>
+                    {% elif status == 'live' %}
+                        <span class="badge" style="background: #e74c3c; color: white;">🔴 LIVE</span>
+                    {% else %}
+                        <span class="badge" style="background: #95a5a6; color: white;">Done</span>
+                    {% endif %}
+                </td>
                 <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
                 <td>{{ play.stat_type }}</td>
                 <td>{{ play.line_value|format_float }}</td>
                 <td>{{ play.expected_value|format_float }}</td>
-                <td>{{ play.deviation|format_float }}</td>
                 <td>{{ play.z_score|format_float }}</td>
                 <td>
                     {% if play.recommendation == 'OVER' %}
@@ -96,7 +119,6 @@
                         -
                     {% endif %}
                 </td>
-                <td>{{ play.bookmaker or '-' }}</td>
             </tr>
             {% endfor %}
         </tbody>

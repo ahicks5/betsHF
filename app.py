@@ -22,37 +22,63 @@ def today_plays():
     """Show today's plays"""
     session = get_session()
 
-    # Get today's plays
+    # Get today's plays with game info - join with PropLine and Game
     today = datetime.utcnow().date()
-    plays = session.query(Play).filter(
+    plays_query = session.query(Play, Game).join(
+        PropLine, Play.prop_line_id == PropLine.id
+    ).join(
+        Game, PropLine.game_id == Game.id
+    ).filter(
         func.date(Play.created_at) == today
-    ).order_by(desc(func.abs(Play.z_score))).all()
+    ).order_by(desc(func.abs(Play.z_score)))
+
+    # Get all results
+    results = plays_query.all()
+
+    # Create list of (play, game) tuples
+    plays_with_games = [(play, game) for play, game in results]
 
     # Filter options
     confidence_filter = request.args.get('confidence', 'all')
     stat_filter = request.args.get('stat', 'all')
     recommendation_filter = request.args.get('recommendation', 'all')
+    game_status_filter = request.args.get('game_status', 'all')
 
     if confidence_filter != 'all':
-        plays = [p for p in plays if p.confidence == confidence_filter]
+        plays_with_games = [(p, g) for p, g in plays_with_games if p.confidence == confidence_filter]
 
     if stat_filter != 'all':
-        plays = [p for p in plays if p.stat_type == stat_filter]
+        plays_with_games = [(p, g) for p, g in plays_with_games if p.stat_type == stat_filter]
 
     if recommendation_filter != 'all':
-        plays = [p for p in plays if p.recommendation == recommendation_filter]
+        plays_with_games = [(p, g) for p, g in plays_with_games if p.recommendation == recommendation_filter]
 
-    # Get unique values for filters
-    all_stats = sorted(set(p.stat_type for p in plays)) if plays else []
-    all_confidences = sorted(set(p.confidence for p in plays if p.confidence)) if plays else []
-    all_recommendations = sorted(set(p.recommendation for p in plays)) if plays else []
+    # Filter by game status
+    now = datetime.utcnow()
+    if game_status_filter == 'upcoming':
+        plays_with_games = [(p, g) for p, g in plays_with_games if g.game_date > now]
+    elif game_status_filter == 'live':
+        # Games started in last 3 hours and not completed
+        three_hours_ago = now - timedelta(hours=3)
+        plays_with_games = [(p, g) for p, g in plays_with_games
+                          if three_hours_ago <= g.game_date <= now and not g.is_completed]
+    elif game_status_filter == 'completed':
+        plays_with_games = [(p, g) for p, g in plays_with_games if g.is_completed]
+
+    # Get unique values for filters (from original plays)
+    all_plays = [p for p, g in results]
+    all_stats = sorted(set(p.stat_type for p in all_plays)) if all_plays else []
+    all_confidences = sorted(set(p.confidence for p in all_plays if p.confidence)) if all_plays else []
+    all_recommendations = sorted(set(p.recommendation for p in all_plays)) if all_plays else []
 
     return render_template('today.html',
-                         plays=plays,
+                         plays_with_games=plays_with_games,
                          date=today,
+                         now=now,
                          confidence_filter=confidence_filter,
                          stat_filter=stat_filter,
                          recommendation_filter=recommendation_filter,
+                         game_status_filter=game_status_filter,
                          all_stats=all_stats,
                          all_confidences=all_confidences,
                          all_recommendations=all_recommendations)
@@ -156,6 +182,26 @@ def stats():
                          last_date=last_date)
 
 
+def get_game_status(game, now=None):
+    """Get game status: upcoming, live, or completed"""
+    if now is None:
+        now = datetime.utcnow()
+
+    if game.is_completed:
+        return 'completed'
+
+    if game.game_date > now:
+        return 'upcoming'
+
+    # Game has started but not completed (within last 3 hours)
+    three_hours_ago = now - timedelta(hours=3)
+    if three_hours_ago <= game.game_date <= now:
+        return 'live'
+
+    # Game started more than 3 hours ago but not marked complete
+    return 'completed'
+
+
 @app.template_filter('format_odds')
 def format_odds(odds):
     """Format American odds for display"""
@@ -172,6 +218,35 @@ def format_float(value, decimals=2):
     if value is None:
         return '-'
     return f"{value:.{decimals}f}"
+
+
+@app.template_filter('game_status')
+def game_status_filter(game):
+    """Get game status for template"""
+    return get_game_status(game)
+
+
+@app.template_filter('time_until')
+def time_until(game_time):
+    """Get human-readable time until game"""
+    if game_time is None:
+        return '-'
+
+    now = datetime.utcnow()
+    if game_time < now:
+        return 'Started'
+
+    diff = game_time - now
+    hours = diff.total_seconds() / 3600
+
+    if hours < 1:
+        minutes = int(diff.total_seconds() / 60)
+        return f'{minutes}m'
+    elif hours < 24:
+        return f'{int(hours)}h'
+    else:
+        days = int(hours / 24)
+        return f'{days}d'
 
 
 if __name__ == '__main__':
