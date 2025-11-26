@@ -2,6 +2,13 @@
 Database connection and session management
 Simple SQLite database: props.db
 """
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports when run directly
+if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from database.models import Base
