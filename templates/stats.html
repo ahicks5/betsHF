@@ -11,18 +11,88 @@
         <p>Total Plays</p>
     </div>
     <div class="stat-box">
-        <h3>{{ high_confidence }}</h3>
-        <p>High Confidence</p>
-    </div>
-    <div class="stat-box">
-        <h3>{{ medium_confidence }}</h3>
-        <p>Medium Confidence</p>
+        <h3>{{ total_graded }}</h3>
+        <p>Graded</p>
     </div>
     <div class="stat-box">
         <h3>{{ days_tracked }}</h3>
         <p>Days Tracked</p>
     </div>
 </div>
+
+{% if total_graded > 0 %}
+<h2 style="margin-top: 2rem; margin-bottom: 1rem;">Performance Metrics</h2>
+
+<div class="stat-grid">
+    <div class="stat-box" style="{% if win_rate >= 55 %}background: #d5f4e6;{% elif win_rate >= 50 %}background: #fff3cd;{% else %}background: #f8d7da;{% endif %}">
+        <h3>{{ win_rate|format_float(1) }}%</h3>
+        <p>Win Rate</p>
+        <small>{{ wins }}W - {{ losses }}L</small>
+    </div>
+    <div class="stat-box" style="{% if total_profit > 0 %}background: #d5f4e6;{% else %}background: #f8d7da;{% endif %}">
+        <h3>${{ total_profit|format_float(0) }}</h3>
+        <p>Total Profit</p>
+        <small>(on $100 bets)</small>
+    </div>
+    <div class="stat-box" style="{% if roi > 0 %}background: #d5f4e6;{% else %}background: #f8d7da;{% endif %}">
+        <h3>{{ roi|format_float(1) }}%</h3>
+        <p>ROI</p>
+        <small>Return on Investment</small>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+    <div class="card">
+        <h3>Win Rate by Confidence</h3>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Level</th>
+                    <th>Win Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for conf, rate in win_rate_by_conf.items()|sort %}
+                <tr>
+                    <td>{{ conf }}</td>
+                    <td><strong>{{ rate|format_float(1) }}%</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3>Win Rate by Stat Type</h3>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Stat</th>
+                    <th>Record</th>
+                    <th>Win Rate</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stat, data in win_rate_by_stat.items()|sort(attribute='1.rate', reverse=True) %}
+                <tr>
+                    <td>{{ stat }}</td>
+                    <td>{{ data.wins }}-{{ data.total - data.wins }}</td>
+                    <td><strong>{{ data.rate|format_float(1) }}%</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card" style="margin-top: 2rem;">
+    <h3>No Results Yet</h3>
+    <p>Once games are completed and results are added, performance metrics will appear here.</p>
+    <p style="margin-top: 1rem;"><strong>To add results:</strong> You'll need to create a script that fetches actual game stats from NBA API and updates the <code>actual_result</code> and <code>was_correct</code> fields in the plays table.</p>
+</div>
+{% endif %}
+
+<h2 style="margin-top: 2rem; margin-bottom: 1rem;">Play Distribution</h2>
 
 {% if total_plays > 0 %}
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">

@@ -30,12 +30,11 @@
                 <tr>
                     <th>Player</th>
                     <th>Stat</th>
-                    <th>Line</th>
-                    <th>Expected</th>
-                    <th>Z-Score</th>
+                    <th>Vegas Line</th>
                     <th>Play</th>
-                    <th>Confidence</th>
-                    <th>Bookmaker</th>
+                    <th>Strength</th>
+                    <th>Actual Result</th>
+                    <th>Outcome</th>
                 </tr>
             </thead>
             <tbody>
@@ -43,9 +42,7 @@
                 <tr>
                     <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
                     <td>{{ play.stat_type }}</td>
-                    <td>{{ play.line_value|format_float }}</td>
-                    <td>{{ play.expected_value|format_float }}</td>
-                    <td>{{ play.z_score|format_float }}</td>
+                    <td><strong>{{ play.line_value|format_float }}</strong></td>
                     <td>
                         {% if play.recommendation == 'OVER' %}
                             <span class="badge badge-over">OVER</span>
@@ -55,16 +52,23 @@
                             <span class="badge badge-no-play">NO PLAY</span>
                         {% endif %}
                     </td>
+                    <td>{{ play.z_score|z_to_confidence }}</td>
                     <td>
-                        {% if play.confidence == 'High' %}
-                            <span class="badge badge-high">High</span>
-                        {% elif play.confidence == 'Medium' %}
-                            <span class="badge badge-medium">Medium</span>
+                        {% if play.actual_result is not none %}
+                            <strong>{{ play.actual_result|format_float }}</strong>
                         {% else %}
-                            {{ play.confidence }}
+                            <span style="color: #95a5a6;">Pending</span>
                         {% endif %}
                     </td>
-                    <td>{{ play.bookmaker or '-' }}</td>
+                    <td>
+                        {% if play.was_correct == true %}
+                            <span class="badge" style="background: #27ae60; color: white;">✓ WIN</span>
+                        {% elif play.was_correct == false %}
+                            <span class="badge" style="background: #e74c3c; color: white;">✗ LOSS</span>
+                        {% else %}
+                            <span style="color: #95a5a6;">-</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

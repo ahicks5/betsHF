@@ -71,7 +71,7 @@ def today_plays():
     confidence_filter = request.args.get('confidence', 'all')
     stat_filter = request.args.get('stat', 'all')
     recommendation_filter = request.args.get('recommendation', 'all')
-    game_status_filter = request.args.get('game_status', 'all')
+    game_status_filter = request.args.get('game_status', 'active')  # Default to 'active' instead of 'all'
 
     if confidence_filter != 'all':
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games if p.confidence == confidence_filter]
@@ -84,15 +84,18 @@ def today_plays():
 
     # Filter by game status
     now = get_local_now()
-    if game_status_filter == 'upcoming':
+    if game_status_filter == 'active':
+        # Default: show only upcoming and live games (not completed)
+        plays_with_games = [(p, g, m) for p, g, m in plays_with_games
+                          if not g.is_completed and utc_to_local(g.game_date) <= now + timedelta(days=1)]
+    elif game_status_filter == 'upcoming':
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games if utc_to_local(g.game_date) > now]
     elif game_status_filter == 'live':
         # Games started in last 3 hours and not completed
         three_hours_ago = now - timedelta(hours=3)
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games
                           if three_hours_ago <= utc_to_local(g.game_date) <= now and not g.is_completed]
-    elif game_status_filter == 'completed':
-        plays_with_games = [(p, g, m) for p, g, m in plays_with_games if g.is_completed]
+    # 'all' - no filtering
 
     # Get unique values for filters (from original plays)
     all_plays = [p for p, g, away, home in results]
@@ -115,15 +118,18 @@ def today_plays():
 
 @app.route('/plays/history')
 def plays_history():
-    """Show historical plays"""
+    """Show historical plays from previous days only"""
     session = get_session()
 
-    # Get date range
+    # Get date range - exclude today
     days = int(request.args.get('days', 7))
-    start_date = datetime.utcnow().date() - timedelta(days=days)
+    today = datetime.utcnow().date()
+    start_date = today - timedelta(days=days)
 
+    # Only get plays from previous days (not today)
     plays = session.query(Play).filter(
-        func.date(Play.created_at) >= start_date
+        func.date(Play.created_at) >= start_date,
+        func.date(Play.created_at) < today  # Exclude today
     ).order_by(desc(Play.created_at), desc(func.abs(Play.z_score))).all()
 
     # Group by date
@@ -164,16 +170,71 @@ def play_detail(play_id):
 
 @app.route('/stats')
 def stats():
-    """Show overall statistics"""
+    """Show overall statistics including performance metrics"""
     session = get_session()
 
     # Get all plays
     all_plays = session.query(Play).all()
 
-    # Calculate stats
+    # Calculate basic stats
     total_plays = len(all_plays)
     high_confidence = len([p for p in all_plays if p.confidence == 'High'])
     medium_confidence = len([p for p in all_plays if p.confidence == 'Medium'])
+
+    # Performance metrics - only plays with results
+    graded_plays = [p for p in all_plays if p.was_correct is not None]
+    total_graded = len(graded_plays)
+    wins = len([p for p in graded_plays if p.was_correct])
+    losses = total_graded - wins
+    win_rate = (wins / total_graded * 100) if total_graded > 0 else 0
+
+    # Calculate profit/loss based on American odds
+    # American odds: negative = how much to bet to win $100, positive = how much you win on $100 bet
+    total_profit = 0
+    for play in graded_plays:
+        if play.was_correct:
+            # Win
+            odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+            if odds and odds < 0:
+                # Negative odds: bet amount to win $100
+                profit = 100  # Win $100
+            elif odds and odds > 0:
+                # Positive odds: win amount on $100 bet
+                profit = odds
+            else:
+                profit = 100  # Default
+            total_profit += profit
+        else:
+            # Loss - lose the bet amount
+            total_profit -= 100
+
+    roi = (total_profit / (total_graded * 100) * 100) if total_graded > 0 else 0
+
+    # Win rate by confidence
+    win_rate_by_conf = {}
+    for conf in ['High', 'Medium']:
+        conf_plays = [p for p in graded_plays if p.confidence == conf]
+        if conf_plays:
+            conf_wins = len([p for p in conf_plays if p.was_correct])
+            win_rate_by_conf[conf] = (conf_wins / len(conf_plays) * 100)
+        else:
+            win_rate_by_conf[conf] = 0
+
+    # Win rate by stat type
+    win_rate_by_stat = {}
+    for play in graded_plays:
+        stat = play.stat_type
+        if stat not in win_rate_by_stat:
+            win_rate_by_stat[stat] = {'wins': 0, 'total': 0}
+        win_rate_by_stat[stat]['total'] += 1
+        if play.was_correct:
+            win_rate_by_stat[stat]['wins'] += 1
+
+    # Convert to percentages
+    for stat in win_rate_by_stat:
+        total = win_rate_by_stat[stat]['total']
+        wins = win_rate_by_stat[stat]['wins']
+        win_rate_by_stat[stat]['rate'] = (wins / total * 100) if total > 0 else 0
 
     # Group by stat type
     stat_counts = {}
@@ -203,6 +264,14 @@ def stats():
                          total_plays=total_plays,
                          high_confidence=high_confidence,
                          medium_confidence=medium_confidence,
+                         total_graded=total_graded,
+                         wins=wins,
+                         losses=losses,
+                         win_rate=win_rate,
+                         total_profit=total_profit,
+                         roi=roi,
+                         win_rate_by_conf=win_rate_by_conf,
+                         win_rate_by_stat=win_rate_by_stat,
                          stat_counts=stat_counts,
                          rec_counts=rec_counts,
                          avg_z_score=avg_z_score,

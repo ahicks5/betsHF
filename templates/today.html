@@ -10,10 +10,10 @@
         <div>
             <label>Game Status:</label>
             <select name="game_status" onchange="this.form.submit()">
-                <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All Games</option>
+                <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active Only</option>
                 <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
                 <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live</option>
-                <option value="completed" {% if game_status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All (inc. Done)</option>
             </select>
         </div>
 
