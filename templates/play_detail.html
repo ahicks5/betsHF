@@ -64,85 +64,90 @@
             <th>Value</th>
         </tr>
         <tr>
-            <td>Line Value</td>
-            <td>{{ play.line_value|format_float }}</td>
+            <td>Vegas Line</td>
+            <td><strong>{{ play.line_value|format_float }}</strong></td>
         </tr>
         <tr>
-            <td>Season Average</td>
+            <td>Player Season Average</td>
             <td>{{ play.season_avg|format_float }}</td>
         </tr>
         <tr>
-            <td>Last 5 Games Average</td>
+            <td>Player Last 5 Games Avg</td>
             <td>{{ play.last5_avg|format_float }}</td>
         </tr>
         <tr>
-            <td><strong>Expected Value</strong></td>
+            <td><strong>Player Historical Avg</strong></td>
             <td><strong>{{ play.expected_value|format_float }}</strong></td>
         </tr>
         <tr>
-            <td>Standard Deviation</td>
+            <td>Player Consistency (Std Dev)</td>
             <td>{{ play.std_dev|format_float }}</td>
         </tr>
         <tr>
-            <td><strong>Deviation</strong></td>
+            <td><strong>Vegas Deviation</strong></td>
             <td><strong>{{ play.deviation|format_float }}</strong></td>
         </tr>
         <tr>
-            <td><strong>Z-Score</strong></td>
-            <td><strong>{{ play.z_score|format_float }}</strong></td>
+            <td><strong>Signal Strength</strong></td>
+            <td><strong>{{ play.z_score|z_to_confidence }}</strong> (z-score: {{ play.z_score|format_float }})</td>
         </tr>
     </table>
 
     <div style="margin-top: 1.5rem; padding: 1rem; background: #ecf0f1; border-radius: 4px;">
-        <h4>Formula</h4>
+        <h4>How It Works</h4>
         <p style="margin-top: 0.5rem; font-family: monospace;">
-            Expected = ({{ play.season_avg|format_float }} × 0.5) + ({{ play.last5_avg|format_float }} × 0.5) = {{ play.expected_value|format_float }}
+            Player Avg = (Season {{ play.season_avg|format_float }} × 50%) + (Last 5 {{ play.last5_avg|format_float }} × 50%) = {{ play.expected_value|format_float }}
         </p>
         <p style="margin-top: 0.5rem; font-family: monospace;">
-            Deviation = {{ play.line_value|format_float }} - {{ play.expected_value|format_float }} = {{ play.deviation|format_float }}
+            Vegas Deviation = Vegas Line {{ play.line_value|format_float }} - Player Avg {{ play.expected_value|format_float }} = {{ play.deviation|format_float }}
         </p>
         <p style="margin-top: 0.5rem; font-family: monospace;">
-            Z-Score = {{ play.deviation|format_float }} / {{ play.std_dev|format_float }} = {{ play.z_score|format_float }}
+            Signal Strength = {{ play.z_score|z_to_confidence }} (based on player consistency)
         </p>
     </div>
 </div>
 
 <div class="card">
-    <h3>Interpretation</h3>
+    <h3>What This Means</h3>
     <div style="margin-top: 1rem;">
-        {% if play.z_score|abs >= 1.0 %}
-            <p><strong>Strong Signal:</strong> The line deviates significantly from expected value (|z-score| ≥ 1.0).</p>
+        <p><strong>Signal Strength: {{ play.z_score|z_to_confidence }}</strong></p>
+
+        {% if play.z_score|abs >= 1.5 %}
+            <p style="margin-top: 0.5rem;">🔥 <strong>Very Strong Signal</strong> - Vegas line is unusually different from what this player typically does. When Vegas moves the line this much, they usually know something.</p>
+        {% elif play.z_score|abs >= 1.0 %}
+            <p style="margin-top: 0.5rem;">💪 <strong>Strong Signal</strong> - Vegas line shows significant deviation from player averages. Worth consideration.</p>
         {% elif play.z_score|abs >= 0.5 %}
-            <p><strong>Medium Signal:</strong> The line shows moderate deviation from expected value (0.5 ≤ |z-score| < 1.0).</p>
+            <p style="margin-top: 0.5rem;">⚡ <strong>Medium Signal</strong> - Vegas line shows moderate deviation. Proceed with caution.</p>
         {% else %}
-            <p><strong>Weak Signal:</strong> The line is close to expected value (|z-score| < 0.5).</p>
+            <p style="margin-top: 0.5rem;">😐 <strong>Weak Signal</strong> - Vegas line is close to player averages. Not a strong play.</p>
         {% endif %}
 
+        <p style="margin-top: 1rem;"><strong>The Strategy:</strong></p>
         {% if play.deviation < 0 %}
-            <p style="margin-top: 0.5rem;">The Vegas line ({{ play.line_value|format_float }}) is <strong>higher</strong> than our expected value ({{ play.expected_value|format_float }}). This suggests betting <strong>UNDER</strong>.</p>
+            <p style="margin-top: 0.5rem;">Vegas set the line at <strong>{{ play.line_value|format_float }}</strong>, which is <strong>higher</strong> than the player's typical performance of {{ play.expected_value|format_float }}. When Vegas moves a line UP like this, they're expecting the player to do WORSE than usual. We follow Vegas and bet <strong>UNDER</strong>.</p>
         {% elif play.deviation > 0 %}
-            <p style="margin-top: 0.5rem;">The Vegas line ({{ play.line_value|format_float }}) is <strong>lower</strong> than our expected value ({{ play.expected_value|format_float }}). This suggests betting <strong>OVER</strong>.</p>
+            <p style="margin-top: 0.5rem;">Vegas set the line at <strong>{{ play.line_value|format_float }}</strong>, which is <strong>lower</strong> than the player's typical performance of {{ play.expected_value|format_float }}. When Vegas moves a line DOWN like this, they're expecting the player to do BETTER than usual. We follow Vegas and bet <strong>OVER</strong>.</p>
         {% endif %}
     </div>
 </div>
 
 <div class="card">
-    <h3>Metadata</h3>
+    <h3>Timestamps</h3>
     <table style="margin-top: 1rem;">
         <tr>
-            <td>Created At</td>
-            <td>{{ play.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</td>
+            <td>Analysis Created</td>
+            <td>{{ (play.created_at|to_local).strftime('%b %d, %Y at %I:%M %p %Z') }}</td>
         </tr>
         {% if prop_line %}
         <tr>
-            <td>Line Collected At</td>
-            <td>{{ prop_line.collected_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</td>
+            <td>Line Collected</td>
+            <td>{{ (prop_line.collected_at|to_local).strftime('%b %d, %Y at %I:%M %p %Z') }}</td>
         </tr>
         {% endif %}
         {% if game %}
         <tr>
-            <td>Game Date</td>
-            <td>{{ game.game_date.strftime('%Y-%m-%d') }}</td>
+            <td>Game Scheduled</td>
+            <td>{{ (game.game_date|to_local).strftime('%b %d, %Y at %I:%M %p %Z') }}</td>
         </tr>
         {% endif %}
     </table>

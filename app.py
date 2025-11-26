@@ -41,21 +41,26 @@ def today_plays():
     """Show today's plays"""
     session = get_session()
 
-    # Get today's plays with game info - join with PropLine and Game
+    # Get today's plays with game info - join with PropLine, Game, and Teams
     today = datetime.utcnow().date()
-    plays_query = session.query(Play, Game).join(
+    plays_query = session.query(Play, Game, Team, Team).join(
         PropLine, Play.prop_line_id == PropLine.id
     ).join(
         Game, PropLine.game_id == Game.id
+    ).join(
+        Team, Game.away_team_id == Team.id
+    ).join(
+        Team, Game.home_team_id == Team.id
     ).filter(
         func.date(Play.created_at) == today
     ).order_by(desc(func.abs(Play.z_score)))
 
-    # Get all results
+    # Get all results - (play, game, away_team, home_team)
     results = plays_query.all()
 
-    # Create list of (play, game) tuples
-    plays_with_games = [(play, game) for play, game in results]
+    # Create list of (play, game, matchup) tuples
+    plays_with_games = [(play, game, f"{away.abbreviation} @ {home.abbreviation}")
+                        for play, game, away, home in results]
 
     # Filter options
     confidence_filter = request.args.get('confidence', 'all')
@@ -64,28 +69,28 @@ def today_plays():
     game_status_filter = request.args.get('game_status', 'all')
 
     if confidence_filter != 'all':
-        plays_with_games = [(p, g) for p, g in plays_with_games if p.confidence == confidence_filter]
+        plays_with_games = [(p, g, m) for p, g, m in plays_with_games if p.confidence == confidence_filter]
 
     if stat_filter != 'all':
-        plays_with_games = [(p, g) for p, g in plays_with_games if p.stat_type == stat_filter]
+        plays_with_games = [(p, g, m) for p, g, m in plays_with_games if p.stat_type == stat_filter]
 
     if recommendation_filter != 'all':
-        plays_with_games = [(p, g) for p, g in plays_with_games if p.recommendation == recommendation_filter]
+        plays_with_games = [(p, g, m) for p, g, m in plays_with_games if p.recommendation == recommendation_filter]
 
     # Filter by game status
     now = get_local_now()
     if game_status_filter == 'upcoming':
-        plays_with_games = [(p, g) for p, g in plays_with_games if utc_to_local(g.game_date) > now]
+        plays_with_games = [(p, g, m) for p, g, m in plays_with_games if utc_to_local(g.game_date) > now]
     elif game_status_filter == 'live':
         # Games started in last 3 hours and not completed
         three_hours_ago = now - timedelta(hours=3)
-        plays_with_games = [(p, g) for p, g in plays_with_games
+        plays_with_games = [(p, g, m) for p, g, m in plays_with_games
                           if three_hours_ago <= utc_to_local(g.game_date) <= now and not g.is_completed]
     elif game_status_filter == 'completed':
-        plays_with_games = [(p, g) for p, g in plays_with_games if g.is_completed]
+        plays_with_games = [(p, g, m) for p, g, m in plays_with_games if g.is_completed]
 
     # Get unique values for filters (from original plays)
-    all_plays = [p for p, g in results]
+    all_plays = [p for p, g, away, home in results]
     all_stats = sorted(set(p.stat_type for p in all_plays)) if all_plays else []
     all_confidences = sorted(set(p.confidence for p in all_plays if p.confidence)) if all_plays else []
     all_recommendations = sorted(set(p.recommendation for p in all_plays)) if all_plays else []
@@ -278,6 +283,31 @@ def time_until(game_time):
 def to_local_filter(utc_time):
     """Convert UTC time to local timezone"""
     return utc_to_local(utc_time)
+
+
+@app.template_filter('z_to_confidence')
+def z_to_confidence(z_score):
+    """
+    Convert z-score to confidence percentage
+    Higher |z| = more unusual line = higher confidence Vegas knows something
+
+    Mapping:
+    |z| = 0.5 → 60%
+    |z| = 1.0 → 70%
+    |z| = 1.5 → 80%
+    |z| = 2.0 → 90%
+    |z| = 2.5+ → 95%+
+    """
+    if z_score is None:
+        return '-'
+
+    abs_z = abs(z_score)
+    # Linear mapping: 50% base + 20% per z-score unit
+    confidence = 50 + (abs_z * 20)
+    # Cap at 99%
+    confidence = min(confidence, 99)
+
+    return f"{int(confidence)}%"
 
 
 if __name__ == '__main__':

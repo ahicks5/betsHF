@@ -58,25 +58,27 @@
     <table>
         <thead>
             <tr>
-                <th>Game Time</th>
+                <th>Matchup</th>
+                <th>Game Date/Time</th>
                 <th>Status</th>
                 <th>Player</th>
                 <th>Stat</th>
-                <th>Line</th>
-                <th>Expected</th>
-                <th>Z-Score</th>
+                <th>Vegas Line</th>
+                <th>Player Avg</th>
                 <th>Play</th>
-                <th>Confidence</th>
+                <th>Strength</th>
                 <th>Odds</th>
             </tr>
         </thead>
         <tbody>
-            {% for play, game in plays_with_games %}
+            {% for play, game, matchup in plays_with_games %}
             {% set status = game|game_status %}
+            {% set game_local = game.game_date|to_local %}
             <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
+                <td style="white-space: nowrap; font-weight: 600;">{{ matchup }}</td>
                 <td style="white-space: nowrap;">
-                    {{ (game.game_date|to_local).strftime('%I:%M %p') }}<br>
-                    <small style="color: #7f8c8d;">{{ game.game_date|time_until }}</small>
+                    {{ game_local.strftime('%b %d') }}<br>
+                    <small style="color: #7f8c8d;">{{ game_local.strftime('%I:%M %p') }} ({{ game.game_date|time_until }})</small>
                 </td>
                 <td>
                     {% if status == 'upcoming' %}
@@ -89,9 +91,8 @@
                 </td>
                 <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
                 <td>{{ play.stat_type }}</td>
-                <td>{{ play.line_value|format_float }}</td>
+                <td><strong>{{ play.line_value|format_float }}</strong></td>
                 <td>{{ play.expected_value|format_float }}</td>
-                <td>{{ play.z_score|format_float }}</td>
                 <td>
                     {% if play.recommendation == 'OVER' %}
                         <span class="badge badge-over">OVER</span>
@@ -101,15 +102,7 @@
                         <span class="badge badge-no-play">NO PLAY</span>
                     {% endif %}
                 </td>
-                <td>
-                    {% if play.confidence == 'High' %}
-                        <span class="badge badge-high">High</span>
-                    {% elif play.confidence == 'Medium' %}
-                        <span class="badge badge-medium">Medium</span>
-                    {% else %}
-                        {{ play.confidence }}
-                    {% endif %}
-                </td>
+                <td><strong>{{ play.z_score|z_to_confidence }}</strong></td>
                 <td>
                     {% if play.recommendation == 'OVER' %}
                         {{ play.over_odds|format_odds }}
