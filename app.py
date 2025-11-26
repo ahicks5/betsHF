@@ -7,8 +7,27 @@ from database.db import get_session
 from database.models import Play, PropLine, Player, Game, Team
 from sqlalchemy import func, desc
 from datetime import datetime, timedelta
+import pytz
 
 app = Flask(__name__)
+
+# Timezone configuration - change this to your local timezone
+LOCAL_TIMEZONE = pytz.timezone('America/Chicago')  # Central Time
+
+
+def utc_to_local(utc_dt):
+    """Convert UTC datetime to local timezone"""
+    if utc_dt is None:
+        return None
+    if utc_dt.tzinfo is None:
+        # Assume UTC if no timezone info
+        utc_dt = pytz.utc.localize(utc_dt)
+    return utc_dt.astimezone(LOCAL_TIMEZONE)
+
+
+def get_local_now():
+    """Get current time in local timezone"""
+    return datetime.now(LOCAL_TIMEZONE)
 
 
 @app.route('/')
@@ -54,14 +73,14 @@ def today_plays():
         plays_with_games = [(p, g) for p, g in plays_with_games if p.recommendation == recommendation_filter]
 
     # Filter by game status
-    now = datetime.utcnow()
+    now = get_local_now()
     if game_status_filter == 'upcoming':
-        plays_with_games = [(p, g) for p, g in plays_with_games if g.game_date > now]
+        plays_with_games = [(p, g) for p, g in plays_with_games if utc_to_local(g.game_date) > now]
     elif game_status_filter == 'live':
         # Games started in last 3 hours and not completed
         three_hours_ago = now - timedelta(hours=3)
         plays_with_games = [(p, g) for p, g in plays_with_games
-                          if three_hours_ago <= g.game_date <= now and not g.is_completed]
+                          if three_hours_ago <= utc_to_local(g.game_date) <= now and not g.is_completed]
     elif game_status_filter == 'completed':
         plays_with_games = [(p, g) for p, g in plays_with_games if g.is_completed]
 
@@ -185,17 +204,20 @@ def stats():
 def get_game_status(game, now=None):
     """Get game status: upcoming, live, or completed"""
     if now is None:
-        now = datetime.utcnow()
+        now = get_local_now()
+
+    # Convert game date to local time for comparison
+    game_local = utc_to_local(game.game_date)
 
     if game.is_completed:
         return 'completed'
 
-    if game.game_date > now:
+    if game_local > now:
         return 'upcoming'
 
     # Game has started but not completed (within last 3 hours)
     three_hours_ago = now - timedelta(hours=3)
-    if three_hours_ago <= game.game_date <= now:
+    if three_hours_ago <= game_local <= now:
         return 'live'
 
     # Game started more than 3 hours ago but not marked complete
@@ -232,11 +254,14 @@ def time_until(game_time):
     if game_time is None:
         return '-'
 
-    now = datetime.utcnow()
-    if game_time < now:
+    # Convert to local time
+    game_local = utc_to_local(game_time)
+    now = get_local_now()
+
+    if game_local < now:
         return 'Started'
 
-    diff = game_time - now
+    diff = game_local - now
     hours = diff.total_seconds() / 3600
 
     if hours < 1:
@@ -247,6 +272,12 @@ def time_until(game_time):
     else:
         days = int(hours / 24)
         return f'{days}d'
+
+
+@app.template_filter('to_local')
+def to_local_filter(utc_time):
+    """Convert UTC time to local timezone"""
+    return utc_to_local(utc_time)
 
 
 if __name__ == '__main__':
