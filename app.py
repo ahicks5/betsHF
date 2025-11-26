@@ -6,6 +6,7 @@ from flask import Flask, render_template, request
 from database.db import get_session
 from database.models import Play, PropLine, Player, Game, Team
 from sqlalchemy import func, desc
+from sqlalchemy.orm import aliased
 from datetime import datetime, timedelta
 import pytz
 
@@ -42,15 +43,19 @@ def today_plays():
     session = get_session()
 
     # Get today's plays with game info - join with PropLine, Game, and Teams
+    # Use aliases for Team table since we join it twice (away and home)
+    away_team = aliased(Team)
+    home_team = aliased(Team)
+
     today = datetime.utcnow().date()
-    plays_query = session.query(Play, Game, Team, Team).join(
+    plays_query = session.query(Play, Game, away_team, home_team).join(
         PropLine, Play.prop_line_id == PropLine.id
     ).join(
         Game, PropLine.game_id == Game.id
     ).join(
-        Team, Game.away_team_id == Team.id
+        away_team, Game.away_team_id == away_team.id
     ).join(
-        Team, Game.home_team_id == Team.id
+        home_team, Game.home_team_id == home_team.id
     ).filter(
         func.date(Play.created_at) == today
     ).order_by(desc(func.abs(Play.z_score)))
