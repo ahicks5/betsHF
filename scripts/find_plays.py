@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from database.db import get_session, close_session
-from database.models import PropLine, Player, Game, Team
+from database.models import PropLine, Player, Game, Team, Play
 from cached_analyzer import CachedPropAnalyzer
 from tabulate import tabulate
 import csv
@@ -90,6 +90,44 @@ def export_detailed_csv(analyses, filename=None):
     return filename
 
 
+def save_plays_to_db(session, analyses_with_props):
+    """Save analyzed plays to the database"""
+    saved_count = 0
+
+    for item in analyses_with_props:
+        analysis = item['analysis']
+        prop = item['prop']
+
+        try:
+            play = Play(
+                prop_line_id=prop.id,
+                player_name=analysis['player_name'],
+                stat_type=analysis['stat_type'],
+                line_value=analysis['line_value'],
+                season_avg=analysis['season_avg'],
+                last5_avg=analysis['recent_avg'],
+                expected_value=analysis['expected_value'],
+                std_dev=analysis['std_dev'],
+                deviation=analysis['deviation'],
+                z_score=analysis['z_score'],
+                recommendation=analysis['recommendation'],
+                confidence=analysis['confidence'],
+                bookmaker=analysis['bookmaker'],
+                over_odds=analysis.get('over_odds'),
+                under_odds=analysis.get('under_odds')
+            )
+
+            session.add(play)
+            saved_count += 1
+
+        except Exception as e:
+            print(f"Error saving play for {analysis['player_name']}: {e}")
+            continue
+
+    session.commit()
+    return saved_count
+
+
 def analyze_all_props():
     """Analyze all latest props and display results"""
     session = get_session()
@@ -109,6 +147,7 @@ def analyze_all_props():
 
     analyses = []
     all_analyses = []  # Track everything
+    all_analyses_with_props = []  # Track analyses with their prop references
     skipped_no_team = 0
     errors = 0
 
@@ -140,6 +179,7 @@ def analyze_all_props():
 
             # Track all analyses
             all_analyses.append(analysis)
+            all_analyses_with_props.append({'analysis': analysis, 'prop': prop})
 
             # Only include plays with recommendations
             if analysis['recommendation'] != "NO PLAY":
@@ -150,19 +190,20 @@ def analyze_all_props():
             errors += 1
             continue
 
-    close_session()
-
     # Deduplicate props - keep only ONE prop per player+stat
     # Pick the best line for the bet direction:
     # - For OVER: pick LOWEST line (easier to hit)
     # - For UNDER: pick HIGHEST line (easier to hit)
     player_stat_best = {}
+    player_stat_best_with_props = {}
 
-    for analysis in all_analyses:
+    for item in all_analyses_with_props:
+        analysis = item['analysis']
         key = (analysis['player_name'], analysis['stat_type'])
 
         if key not in player_stat_best:
             player_stat_best[key] = analysis
+            player_stat_best_with_props[key] = item
         else:
             current = player_stat_best[key]
             recommendation = analysis['recommendation']
@@ -172,17 +213,27 @@ def analyze_all_props():
                 # For OVER, lower line is better
                 if analysis['line_value'] < current['line_value']:
                     player_stat_best[key] = analysis
+                    player_stat_best_with_props[key] = item
             elif recommendation == "UNDER":
                 # For UNDER, higher line is better
                 if analysis['line_value'] > current['line_value']:
                     player_stat_best[key] = analysis
+                    player_stat_best_with_props[key] = item
             else:
                 # For NO PLAY, just keep first one
                 pass
 
     # Convert back to lists
     all_analyses = list(player_stat_best.values())
+    all_analyses_with_props = list(player_stat_best_with_props.values())
     analyses = [a for a in all_analyses if a['recommendation'] != "NO PLAY"]
+
+    # Save all plays to database
+    saved_count = save_plays_to_db(session, all_analyses_with_props)
+    print(f"[OK] Saved {saved_count} plays to database")
+    print()
+
+    close_session()
 
     # Print cache statistics
     cache_stats = analyzer.get_cache_stats()

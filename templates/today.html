@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Today's Plays - NBA Props Analyzer{% endblock %}
+
+{% block content %}
+<h2>Today's Plays - {{ date.strftime('%B %d, %Y') }}</h2>
+
+<div class="filters">
+    <form method="get">
+        <div>
+            <label>Confidence:</label>
+            <select name="confidence" onchange="this.form.submit()">
+                <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
+                {% for conf in all_confidences %}
+                <option value="{{ conf }}" {% if confidence_filter == conf %}selected{% endif %}>{{ conf }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label>Stat:</label>
+            <select name="stat" onchange="this.form.submit()">
+                <option value="all" {% if stat_filter == 'all' %}selected{% endif %}>All</option>
+                {% for stat in all_stats %}
+                <option value="{{ stat }}" {% if stat_filter == stat %}selected{% endif %}>{{ stat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label>Recommendation:</label>
+            <select name="recommendation" onchange="this.form.submit()">
+                <option value="all" {% if recommendation_filter == 'all' %}selected{% endif %}>All</option>
+                {% for rec in all_recommendations %}
+                <option value="{{ rec }}" {% if recommendation_filter == rec %}selected{% endif %}>{{ rec }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit">Filter</button>
+    </form>
+</div>
+
+{% if plays %}
+<div class="card">
+    <h3>{{ plays|length }} Plays Found</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Stat</th>
+                <th>Line</th>
+                <th>Expected</th>
+                <th>Deviation</th>
+                <th>Z-Score</th>
+                <th>Play</th>
+                <th>Confidence</th>
+                <th>Odds</th>
+                <th>Bookmaker</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for play in plays %}
+            <tr>
+                <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
+                <td>{{ play.stat_type }}</td>
+                <td>{{ play.line_value|format_float }}</td>
+                <td>{{ play.expected_value|format_float }}</td>
+                <td>{{ play.deviation|format_float }}</td>
+                <td>{{ play.z_score|format_float }}</td>
+                <td>
+                    {% if play.recommendation == 'OVER' %}
+                        <span class="badge badge-over">OVER</span>
+                    {% elif play.recommendation == 'UNDER' %}
+                        <span class="badge badge-under">UNDER</span>
+                    {% else %}
+                        <span class="badge badge-no-play">NO PLAY</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if play.confidence == 'High' %}
+                        <span class="badge badge-high">High</span>
+                    {% elif play.confidence == 'Medium' %}
+                        <span class="badge badge-medium">Medium</span>
+                    {% else %}
+                        {{ play.confidence }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if play.recommendation == 'OVER' %}
+                        {{ play.over_odds|format_odds }}
+                    {% elif play.recommendation == 'UNDER' %}
+                        {{ play.under_odds|format_odds }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ play.bookmaker or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h2>No plays found for today</h2>
+    <p>Run <code>python scripts/collect_today.py</code> followed by <code>python scripts/find_plays.py</code> to generate plays.</p>
+</div>
+{% endif %}
+{% endblock %}

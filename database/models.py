@@ -70,3 +70,42 @@ class PropLine(Base):
 
     game = relationship("Game", back_populates="prop_lines")
     player = relationship("Player", back_populates="prop_lines")
+    plays = relationship("Play", back_populates="prop_line")
+
+
+class Play(Base):
+    """Analyzed betting plays with recommendations"""
+    __tablename__ = "plays"
+
+    id = Column(Integer, primary_key=True)
+    prop_line_id = Column(Integer, ForeignKey("prop_lines.id"), nullable=False)
+    player_name = Column(String(100), nullable=False)
+    stat_type = Column(String(50), nullable=False)
+    line_value = Column(Float, nullable=False)
+
+    # Analysis data
+    season_avg = Column(Float, nullable=True)
+    last5_avg = Column(Float, nullable=True)
+    expected_value = Column(Float, nullable=True)
+    std_dev = Column(Float, nullable=True)
+    deviation = Column(Float, nullable=True)
+    z_score = Column(Float, nullable=True)
+
+    # Recommendation
+    recommendation = Column(String(20), nullable=False)  # OVER, UNDER, NO PLAY
+    confidence = Column(String(20), nullable=True)  # High, Medium, N/A
+
+    # Odds info
+    bookmaker = Column(String(50), nullable=True)
+    over_odds = Column(Integer, nullable=True)
+    under_odds = Column(Integer, nullable=True)
+
+    # Tracking
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Future: actual results for backtesting
+    actual_result = Column(Float, nullable=True)
+    result_collected_at = Column(DateTime, nullable=True)
+    was_correct = Column(Boolean, nullable=True)
+
+    prop_line = relationship("PropLine", back_populates="plays")

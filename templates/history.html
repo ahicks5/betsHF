@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Play History - NBA Props Analyzer{% endblock %}
+
+{% block content %}
+<h2>Play History</h2>
+
+<div class="filters">
+    <form method="get">
+        <div>
+            <label>Show last:</label>
+            <select name="days" onchange="this.form.submit()">
+                <option value="7" {% if days == 7 %}selected{% endif %}>7 days</option>
+                <option value="14" {% if days == 14 %}selected{% endif %}>14 days</option>
+                <option value="30" {% if days == 30 %}selected{% endif %}>30 days</option>
+                <option value="90" {% if days == 90 %}selected{% endif %}>90 days</option>
+            </select>
+        </div>
+        <button type="submit">Update</button>
+    </form>
+</div>
+
+{% if plays_by_date %}
+    {% for date, plays in plays_by_date.items()|sort(reverse=True) %}
+    <div class="card">
+        <h3>{{ date.strftime('%B %d, %Y') }} - {{ plays|length }} plays</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Stat</th>
+                    <th>Line</th>
+                    <th>Expected</th>
+                    <th>Z-Score</th>
+                    <th>Play</th>
+                    <th>Confidence</th>
+                    <th>Bookmaker</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for play in plays %}
+                <tr>
+                    <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
+                    <td>{{ play.stat_type }}</td>
+                    <td>{{ play.line_value|format_float }}</td>
+                    <td>{{ play.expected_value|format_float }}</td>
+                    <td>{{ play.z_score|format_float }}</td>
+                    <td>
+                        {% if play.recommendation == 'OVER' %}
+                            <span class="badge badge-over">OVER</span>
+                        {% elif play.recommendation == 'UNDER' %}
+                            <span class="badge badge-under">UNDER</span>
+                        {% else %}
+                            <span class="badge badge-no-play">NO PLAY</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if play.confidence == 'High' %}
+                            <span class="badge badge-high">High</span>
+                        {% elif play.confidence == 'Medium' %}
+                            <span class="badge badge-medium">Medium</span>
+                        {% else %}
+                            {{ play.confidence }}
+                        {% endif %}
+                    </td>
+                    <td>{{ play.bookmaker or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="empty-state">
+    <h2>No historical plays found</h2>
+    <p>Start running the daily analysis to build up historical data.</p>
+</div>
+{% endif %}
+{% endblock %}

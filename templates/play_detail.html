@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}{{ play.player_name }} {{ play.stat_type }} - NBA Props Analyzer{% endblock %}
+
+{% block content %}
+<a href="/" style="color: #3498db; text-decoration: none; margin-bottom: 1rem; display: inline-block;">&larr; Back to Today's Plays</a>
+
+<div class="card">
+    <h2>{{ play.player_name }} - {{ play.stat_type }}</h2>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+        <div>
+            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">RECOMMENDATION</h3>
+            <p style="font-size: 1.5rem; font-weight: bold;">
+                {% if play.recommendation == 'OVER' %}
+                    <span class="badge badge-over" style="font-size: 1.2rem; padding: 0.5rem 1rem;">OVER {{ play.line_value|format_float }}</span>
+                {% elif play.recommendation == 'UNDER' %}
+                    <span class="badge badge-under" style="font-size: 1.2rem; padding: 0.5rem 1rem;">UNDER {{ play.line_value|format_float }}</span>
+                {% else %}
+                    <span class="badge badge-no-play" style="font-size: 1.2rem; padding: 0.5rem 1rem;">NO PLAY</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div>
+            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">CONFIDENCE</h3>
+            <p style="font-size: 1.5rem; font-weight: bold;">
+                {% if play.confidence == 'High' %}
+                    <span class="badge badge-high" style="font-size: 1.2rem; padding: 0.5rem 1rem;">High</span>
+                {% elif play.confidence == 'Medium' %}
+                    <span class="badge badge-medium" style="font-size: 1.2rem; padding: 0.5rem 1rem;">Medium</span>
+                {% else %}
+                    {{ play.confidence or 'N/A' }}
+                {% endif %}
+            </p>
+        </div>
+
+        <div>
+            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">ODDS</h3>
+            <p style="font-size: 1.5rem; font-weight: bold;">
+                {% if play.recommendation == 'OVER' %}
+                    {{ play.over_odds|format_odds }}
+                {% elif play.recommendation == 'UNDER' %}
+                    {{ play.under_odds|format_odds }}
+                {% else %}
+                    -
+                {% endif %}
+            </p>
+        </div>
+
+        <div>
+            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">BOOKMAKER</h3>
+            <p style="font-size: 1.5rem; font-weight: bold;">{{ play.bookmaker or 'N/A' }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Analysis Details</h3>
+
+    <table style="margin-top: 1rem;">
+        <tr>
+            <th>Metric</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Line Value</td>
+            <td>{{ play.line_value|format_float }}</td>
+        </tr>
+        <tr>
+            <td>Season Average</td>
+            <td>{{ play.season_avg|format_float }}</td>
+        </tr>
+        <tr>
+            <td>Last 5 Games Average</td>
+            <td>{{ play.last5_avg|format_float }}</td>
+        </tr>
+        <tr>
+            <td><strong>Expected Value</strong></td>
+            <td><strong>{{ play.expected_value|format_float }}</strong></td>
+        </tr>
+        <tr>
+            <td>Standard Deviation</td>
+            <td>{{ play.std_dev|format_float }}</td>
+        </tr>
+        <tr>
+            <td><strong>Deviation</strong></td>
+            <td><strong>{{ play.deviation|format_float }}</strong></td>
+        </tr>
+        <tr>
+            <td><strong>Z-Score</strong></td>
+            <td><strong>{{ play.z_score|format_float }}</strong></td>
+        </tr>
+    </table>
+
+    <div style="margin-top: 1.5rem; padding: 1rem; background: #ecf0f1; border-radius: 4px;">
+        <h4>Formula</h4>
+        <p style="margin-top: 0.5rem; font-family: monospace;">
+            Expected = ({{ play.season_avg|format_float }} × 0.5) + ({{ play.last5_avg|format_float }} × 0.5) = {{ play.expected_value|format_float }}
+        </p>
+        <p style="margin-top: 0.5rem; font-family: monospace;">
+            Deviation = {{ play.line_value|format_float }} - {{ play.expected_value|format_float }} = {{ play.deviation|format_float }}
+        </p>
+        <p style="margin-top: 0.5rem; font-family: monospace;">
+            Z-Score = {{ play.deviation|format_float }} / {{ play.std_dev|format_float }} = {{ play.z_score|format_float }}
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Interpretation</h3>
+    <div style="margin-top: 1rem;">
+        {% if play.z_score|abs >= 1.0 %}
+            <p><strong>Strong Signal:</strong> The line deviates significantly from expected value (|z-score| ≥ 1.0).</p>
+        {% elif play.z_score|abs >= 0.5 %}
+            <p><strong>Medium Signal:</strong> The line shows moderate deviation from expected value (0.5 ≤ |z-score| < 1.0).</p>
+        {% else %}
+            <p><strong>Weak Signal:</strong> The line is close to expected value (|z-score| < 0.5).</p>
+        {% endif %}
+
+        {% if play.deviation < 0 %}
+            <p style="margin-top: 0.5rem;">The Vegas line ({{ play.line_value|format_float }}) is <strong>higher</strong> than our expected value ({{ play.expected_value|format_float }}). This suggests betting <strong>UNDER</strong>.</p>
+        {% elif play.deviation > 0 %}
+            <p style="margin-top: 0.5rem;">The Vegas line ({{ play.line_value|format_float }}) is <strong>lower</strong> than our expected value ({{ play.expected_value|format_float }}). This suggests betting <strong>OVER</strong>.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h3>Metadata</h3>
+    <table style="margin-top: 1rem;">
+        <tr>
+            <td>Created At</td>
+            <td>{{ play.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</td>
+        </tr>
+        {% if prop_line %}
+        <tr>
+            <td>Line Collected At</td>
+            <td>{{ prop_line.collected_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</td>
+        </tr>
+        {% endif %}
+        {% if game %}
+        <tr>
+            <td>Game Date</td>
+            <td>{{ game.game_date.strftime('%Y-%m-%d') }}</td>
+        </tr>
+        {% endif %}
+    </table>
+</div>
+{% endblock %}

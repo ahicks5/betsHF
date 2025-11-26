@@ -32,17 +32,26 @@ We don't try to predict outcomes. Instead, we:
 ```
 betsHF/
 ├── database/
-│   ├── models.py          # Team, Player, Game, PropLine models
+│   ├── models.py          # Team, Player, Game, PropLine, Play models
 │   └── db.py              # SQLite connection (props.db)
 ├── services/
 │   ├── nba_api.py         # NBA API client for stats
 │   └── odds_api.py        # Odds API client for props
 ├── scripts/
 │   ├── collect_today.py   # Data collection script
-│   ├── find_plays.py      # Play finder and analyzer
+│   ├── find_plays.py      # Play finder and analyzer (saves to DB)
 │   └── update_player_teams.py  # Team assignment utility
+├── templates/             # Flask HTML templates
+│   ├── base.html          # Base template with navigation
+│   ├── today.html         # Today's plays view
+│   ├── history.html       # Historical plays view
+│   ├── play_detail.html   # Detailed play analysis
+│   └── stats.html         # Overall statistics
+├── app.py                 # Flask web application
 ├── cached_analyzer.py     # Core stats analyzer with caching
+├── requirements.txt       # Python dependencies
 ├── .env                   # API keys (not committed)
+├── DAILY_RUN.md          # Daily workflow and automation guide
 └── README.md              # This file
 ```
 
@@ -51,7 +60,12 @@ betsHF/
 ### 1. Install Dependencies
 
 ```bash
-pip install nba_api requests python-dotenv sqlalchemy pandas numpy tabulate
+pip install -r requirements.txt
+```
+
+Or install individually:
+```bash
+pip install nba_api requests python-dotenv sqlalchemy pandas numpy tabulate flask
 ```
 
 ### 2. Configure API Keys
@@ -79,7 +93,9 @@ This creates the `props.db` SQLite database with all necessary tables.
 
 ## Usage
 
-### Daily Workflow
+### Quick Start - Daily Workflow
+
+See [DAILY_RUN.md](DAILY_RUN.md) for detailed daily run instructions and automation setup.
 
 **Step 1: Collect Today's Data**
 
@@ -105,7 +121,21 @@ This will:
 - Calculate expected values using our formula
 - Compute z-scores (deviation strength)
 - Show recommendations sorted by strongest signal
+- **Save all plays to database with timestamps**
 - Export detailed CSV with calculation steps for diagnostics
+
+**Step 3: View in Browser (Optional)**
+
+```bash
+python app.py
+```
+
+Then open `http://localhost:5000` to:
+- View today's plays in a clean web interface
+- Filter by confidence, stat type, or recommendation
+- See detailed analysis for each play
+- Browse historical plays
+- View overall statistics
 
 ### Sample Output
 
@@ -204,12 +234,13 @@ else:
 - **players** - Active NBA players (~500)
 - **games** - Today's games
 - **prop_lines** - Player prop lines from sportsbooks
+- **plays** - Analyzed plays with recommendations, z-scores, and all analysis data (timestamped for tracking)
 
 ### Querying the Database
 
 ```python
 from database.db import get_session
-from database.models import PropLine, Player
+from database.models import PropLine, Player, Play
 
 session = get_session()
 
@@ -218,7 +249,33 @@ props = session.query(PropLine).filter_by(is_latest=True).all()
 
 # Find a specific player
 player = session.query(Player).filter_by(full_name="LeBron James").first()
+
+# Get today's high-confidence plays
+from sqlalchemy import func
+from datetime import datetime
+today = datetime.utcnow().date()
+plays = session.query(Play).filter(
+    func.date(Play.created_at) == today,
+    Play.confidence == 'High'
+).all()
 ```
+
+## Web Interface
+
+The Flask web app provides a user-friendly interface to view and analyze plays:
+
+- **Today's Plays**: View all plays for today with filtering options
+- **History**: Browse historical plays by date range
+- **Play Details**: Deep dive into individual play analysis with formulas and interpretation
+- **Statistics**: Overall metrics and breakdowns by stat type and recommendation
+
+Start the web server:
+
+```bash
+python app.py
+```
+
+Access at `http://localhost:5000`
 
 ## API Rate Limits
 
