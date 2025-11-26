@@ -30,9 +30,9 @@
         <small>{{ wins }}W - {{ losses }}L</small>
     </div>
     <div class="stat-box" style="{% if total_profit > 0 %}background: #d5f4e6;{% else %}background: #f8d7da;{% endif %}">
-        <h3>${{ total_profit|format_float(0) }}</h3>
+        <h3>${{ total_profit|format_float(2) }}</h3>
         <p>Total Profit</p>
-        <small>(on $100 bets)</small>
+        <small>(on ${{ bet_amount }} bets)</small>
     </div>
     <div class="stat-box" style="{% if roi > 0 %}background: #d5f4e6;{% else %}background: #f8d7da;{% endif %}">
         <h3>{{ roi|format_float(1) }}%</h3>
@@ -43,19 +43,25 @@
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
     <div class="card">
-        <h3>Win Rate by Confidence</h3>
+        <h3>Performance by Confidence</h3>
         <table style="margin-top: 1rem;">
             <thead>
                 <tr>
                     <th>Level</th>
+                    <th>Record</th>
                     <th>Win Rate</th>
+                    <th>Profit</th>
                 </tr>
             </thead>
             <tbody>
-                {% for conf, rate in win_rate_by_conf.items()|sort %}
+                {% for conf in ['High', 'Medium']|sort %}
                 <tr>
-                    <td>{{ conf }}</td>
-                    <td><strong>{{ rate|format_float(1) }}%</strong></td>
+                    <td><strong>{{ conf }}</strong></td>
+                    <td>{{ win_rate_by_conf[conf].wins }}-{{ win_rate_by_conf[conf].total - win_rate_by_conf[conf].wins }}</td>
+                    <td><strong>{{ win_rate_by_conf[conf].rate|format_float(1) }}%</strong></td>
+                    <td style="{% if profit_by_conf[conf] > 0 %}color: #27ae60;{% else %}color: #e74c3c;{% endif %} font-weight: bold;">
+                        ${{ profit_by_conf[conf]|format_float(2) }}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -63,21 +69,25 @@
     </div>
 
     <div class="card">
-        <h3>Win Rate by Stat Type</h3>
+        <h3>Performance by Stat Type</h3>
         <table style="margin-top: 1rem;">
             <thead>
                 <tr>
                     <th>Stat</th>
                     <th>Record</th>
                     <th>Win Rate</th>
+                    <th>Profit</th>
                 </tr>
             </thead>
             <tbody>
                 {% for stat, data in win_rate_by_stat.items()|sort(attribute='1.rate', reverse=True) %}
                 <tr>
-                    <td>{{ stat }}</td>
+                    <td><strong>{{ stat }}</strong></td>
                     <td>{{ data.wins }}-{{ data.total - data.wins }}</td>
                     <td><strong>{{ data.rate|format_float(1) }}%</strong></td>
+                    <td style="{% if profit_by_stat[stat] > 0 %}color: #27ae60;{% else %}color: #e74c3c;{% endif %} font-weight: bold;">
+                        ${{ profit_by_stat[stat]|format_float(2) }}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

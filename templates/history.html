@@ -32,9 +32,11 @@
                     <th>Stat</th>
                     <th>Vegas Line</th>
                     <th>Play</th>
+                    <th>Odds</th>
                     <th>Strength</th>
                     <th>Actual Result</th>
                     <th>Outcome</th>
+                    <th>Profit/Loss</th>
                 </tr>
             </thead>
             <tbody>
@@ -52,6 +54,15 @@
                             <span class="badge badge-no-play">NO PLAY</span>
                         {% endif %}
                     </td>
+                    <td>
+                        {% if play.recommendation == 'OVER' %}
+                            {{ play.over_odds|format_odds }}
+                        {% elif play.recommendation == 'UNDER' %}
+                            {{ play.under_odds|format_odds }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td>{{ play.z_score|z_to_confidence }}</td>
                     <td>
                         {% if play.actual_result is not none %}
@@ -61,10 +72,23 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if play.was_correct == true %}
+                        {% if play.recommendation == 'NO PLAY' %}
+                            {% if play.actual_result is not none %}
+                                <span class="badge" style="background: #95a5a6; color: white;">SKIP</span>
+                            {% else %}
+                                <span style="color: #95a5a6;">-</span>
+                            {% endif %}
+                        {% elif play.was_correct == true %}
                             <span class="badge" style="background: #27ae60; color: white;">✓ WIN</span>
                         {% elif play.was_correct == false %}
                             <span class="badge" style="background: #e74c3c; color: white;">✗ LOSS</span>
+                        {% else %}
+                            <span style="color: #95a5a6;">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if play.recommendation != 'NO PLAY' and play.was_correct is not none %}
+                            {{ play|calculate_profit(10)|safe }}
                         {% else %}
                             <span style="color: #95a5a6;">-</span>
                         {% endif %}
