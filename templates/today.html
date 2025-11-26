@@ -76,7 +76,7 @@
             <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
                 <td style="white-space: nowrap;">
                     {{ game.game_date.strftime('%I:%M %p') }}<br>
-                    <small style="color: #7f8c8d;">{{ game|time_until }}</small>
+                    <small style="color: #7f8c8d;">{{ game.game_date|time_until }}</small>
                 </td>
                 <td>
                     {% if status == 'upcoming' %}
