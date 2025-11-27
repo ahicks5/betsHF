@@ -15,6 +15,22 @@ from datetime import datetime, timedelta
 import time
 import numpy as np
 
+# Custom headers to avoid NBA API blocking (same as services/nba_api.py)
+CUSTOM_HEADERS = {
+    'Host': 'stats.nba.com',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'x-nba-stats-origin': 'stats',
+    'x-nba-stats-token': 'true',
+    'Connection': 'keep-alive',
+    'Referer': 'https://stats.nba.com/',
+    'Origin': 'https://stats.nba.com',
+}
+
+REQUEST_TIMEOUT = 120  # Increased timeout for cloud environments
+
 
 def log_api_call(api_name, endpoint=None, player_id=None, season=None, cache_hit=False):
     """Log API call for monitoring"""
@@ -33,6 +49,8 @@ def log_api_call(api_name, endpoint=None, player_id=None, season=None, cache_hit
 def get_current_season():
     """Get current NBA season (e.g., '2024-25')"""
     now = datetime.now()
+    # NBA season runs Oct-Jun, so if month >= 10, it's the start of new season
+    # If month < 10, we're in the tail end of previous season
     if now.month >= 10:  # Season starts in October
         return f"{now.year}-{str(now.year + 1)[-2:]}"
     else:
@@ -83,10 +101,12 @@ def fetch_player_game_log(player_id, season=None, force_refresh=False):
     log_api_call('nba_api', 'playergamelog', player_id, season, cache_hit=False)
 
     try:
-        # NBA API call
+        # NBA API call with custom headers and timeout
         gamelog = playergamelog.PlayerGameLog(
             player_id=player.nba_player_id,
-            season=season
+            season=season,
+            headers=CUSTOM_HEADERS,
+            timeout=REQUEST_TIMEOUT
         )
         df = gamelog.get_data_frames()[0]
 
@@ -95,7 +115,7 @@ def fetch_player_game_log(player_id, season=None, force_refresh=False):
             return []
 
         # Rate limiting - be nice to NBA API
-        time.sleep(0.6)  # Max ~100 requests/minute
+        time.sleep(0.8)  # Max ~75 requests/minute
 
         # Store in database
         stats_objects = []
