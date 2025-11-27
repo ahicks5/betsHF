@@ -1,58 +1,98 @@
 """
 Cached Stats-Based NBA Props Analyzer
 
-Caches player and team stats to avoid redundant API calls
+Uses database cache for player stats - NO API calls during analysis
+Stats are pre-fetched by sync_nba_stats.py
 """
-from services.nba_api import NBAApiClient
-import pandas as pd
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from database.db import get_session
+from database.models import Player
+from data.nba_stats import get_player_averages, get_player_stat_distribution
 import numpy as np
 
 
 class CachedPropAnalyzer:
-    """Analyze player props with caching to minimize API calls"""
+    """Analyze player props using pre-cached database stats"""
 
     def __init__(self):
-        self.nba_client = NBAApiClient()
-        self.player_cache = {}  # Cache player stats
-        self.team_cache = {}    # Cache team defense stats
+        self.session = get_session()
+        self.player_id_map = {}  # Map NBA API player IDs to internal database IDs
 
-    def get_cached_player_stats(self, player_id):
-        """Get player stats with caching"""
-        if player_id not in self.player_cache:
-            # Fetch season and recent stats
-            season_stats = self.nba_client.get_player_season_stats(player_id)
-            recent_stats = self.nba_client.get_player_recent_stats(player_id, 5)
-            game_log = self.nba_client.get_player_game_log(player_id)
+    def get_internal_player_id(self, nba_player_id):
+        """Convert NBA API player ID to internal database player ID"""
+        if nba_player_id not in self.player_id_map:
+            player = self.session.query(Player).filter_by(nba_player_id=nba_player_id).first()
+            if player:
+                self.player_id_map[nba_player_id] = player.id
+            else:
+                return None
+        return self.player_id_map.get(nba_player_id)
 
-            # Calculate standard deviations for each stat
-            std_devs = {}
-            games_played = 0
-            if not game_log.empty:
-                games_played = len(game_log)
-                for stat in ['PTS', 'REB', 'AST', 'FG3M']:
-                    if stat in game_log.columns:
-                        std_devs[stat] = game_log[stat].std()
+    def get_cached_player_stats(self, nba_player_id):
+        """
+        Get player stats from database cache
 
-            self.player_cache[player_id] = {
-                'season': season_stats,
-                'recent': recent_stats,
-                'std_devs': std_devs,
-                'games_played': games_played
+        Returns same format as old version for compatibility
+        """
+        # Get internal player ID
+        internal_id = self.get_internal_player_id(nba_player_id)
+        if not internal_id:
+            # Return empty stats if player not found
+            return {
+                'season': {},
+                'recent': {},
+                'std_devs': {},
+                'games_played': 0
             }
 
-        return self.player_cache[player_id]
+        # Map prop stat names to database column names
+        stat_map = {
+            'PTS': 'points',
+            'REB': 'rebounds',
+            'AST': 'assists',
+            'FG3M': 'fg3m',
+            'STL': 'steals',
+            'BLK': 'blocks'
+        }
+
+        # Get season averages
+        season_avgs = get_player_averages(internal_id)
+
+        # Get recent (last 5 games) averages
+        recent_avgs = get_player_averages(internal_id, last_n_games=5)
+
+        # Build response in old format
+        season_stats = {}
+        recent_stats = {}
+        std_devs = {}
+
+        for nba_stat, db_stat in stat_map.items():
+            season_stats[nba_stat] = season_avgs.get(db_stat, 0) or 0
+            recent_stats[nba_stat] = recent_avgs.get(db_stat, 0) or 0
+            std_devs[nba_stat] = season_avgs.get(f'{db_stat}_std', 0) or 0
+
+        games_played = season_avgs.get('points_games', 0)  # Use points games as proxy
+
+        return {
+            'season': season_stats,
+            'recent': recent_stats,
+            'std_devs': std_devs,
+            'games_played': games_played
+        }
 
     def get_cached_team_defense(self, team_abbr):
-        """Get team defense stats with caching"""
-        if team_abbr not in self.team_cache:
-            defense = self.nba_client.get_team_defense_stats(team_abbr)
-            self.team_cache[team_abbr] = defense
-
-        return self.team_cache[team_abbr]
+        """
+        Get team defense stats (currently not used)
+        Placeholder for future enhancement
+        """
+        return {}
 
     def calculate_expected_value(self, player_id, stat_type, opponent_abbr):
         """
-        Calculate expected stat value using weighted average with caching
+        Calculate expected stat value using weighted average from cached data
 
         Formula: 50% season avg + 50% L5 avg
 
@@ -61,7 +101,7 @@ class CachedPropAnalyzer:
 
         Returns: (expected_value, std_dev, components_dict)
         """
-        # Get cached player stats
+        # Get cached player stats (from database, not API)
         player_stats = self.get_cached_player_stats(player_id)
 
         season_avg = player_stats['season'].get(stat_type, 0)

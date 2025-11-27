@@ -110,3 +110,55 @@ class Play(Base):
     was_correct = Column(Boolean, nullable=True)
 
     prop_line = relationship("PropLine", back_populates="plays")
+
+
+class PlayerGameStats(Base):
+    """Cached NBA player game-by-game statistics"""
+    __tablename__ = "player_game_stats"
+
+    id = Column(Integer, primary_key=True)
+    player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
+    game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
+    nba_game_id = Column(String(50), nullable=False)
+    game_date = Column(DateTime, nullable=False)
+
+    # Core stats
+    minutes = Column(Float, nullable=True)
+    points = Column(Integer, nullable=True)
+    rebounds = Column(Integer, nullable=True)
+    assists = Column(Integer, nullable=True)
+    steals = Column(Integer, nullable=True)
+    blocks = Column(Integer, nullable=True)
+    turnovers = Column(Integer, nullable=True)
+
+    # Shooting stats
+    fgm = Column(Integer, nullable=True)  # Field goals made
+    fga = Column(Integer, nullable=True)  # Field goals attempted
+    fg_pct = Column(Float, nullable=True)  # Field goal %
+    fg3m = Column(Integer, nullable=True)  # 3-pointers made
+    fg3a = Column(Integer, nullable=True)  # 3-pointers attempted
+    fg3_pct = Column(Float, nullable=True)  # 3-point %
+    ftm = Column(Integer, nullable=True)  # Free throws made
+    fta = Column(Integer, nullable=True)  # Free throws attempted
+    ft_pct = Column(Float, nullable=True)  # Free throw %
+
+    # Metadata
+    season = Column(String(10), nullable=False)  # "2024-25"
+    fetched_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    player = relationship("Player")
+    game = relationship("Game")
+
+
+class APICallLog(Base):
+    """Track API calls for monitoring and rate limiting"""
+    __tablename__ = "api_call_logs"
+
+    id = Column(Integer, primary_key=True)
+    api_name = Column(String(50), nullable=False)  # 'nba_api', 'odds_api'
+    endpoint = Column(String(200), nullable=True)
+    player_id = Column(Integer, nullable=True)
+    season = Column(String(10), nullable=True)
+    cache_hit = Column(Boolean, default=False)
+    called_at = Column(DateTime, default=datetime.utcnow, nullable=False)

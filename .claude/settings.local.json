@@ -4,7 +4,10 @@
       "Bash(python scripts/migrate_add_games_played.py:*)",
       "Bash(python scripts/find_plays.py:*)",
       "Bash(python scripts/cleanup_old_plays.py:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(if not exist data mkdir data)",
+      "Bash(python database/db.py:*)",
+      "Bash(python scripts/test_caching_system.py:*)"
     ],
     "deny": [],
     "ask": []
