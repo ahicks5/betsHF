@@ -2,34 +2,18 @@
 NBA Stats Caching Module
 Fetches player game stats from NBA API and caches in database
 Provides efficient access to player averages and game logs
+Uses existing NBAApiClient with ScraperAPI support
 """
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from nba_api.stats.endpoints import playergamelog, commonplayerinfo
-from nba_api.stats.static import players as nba_players
+from services.nba_api import NBAApiClient
 from database.db import get_session
 from database.models import Player, Game, Team, PlayerGameStats, APICallLog
 from datetime import datetime, timedelta
 import time
 import numpy as np
-
-# Custom headers to avoid NBA API blocking (same as services/nba_api.py)
-CUSTOM_HEADERS = {
-    'Host': 'stats.nba.com',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'x-nba-stats-origin': 'stats',
-    'x-nba-stats-token': 'true',
-    'Connection': 'keep-alive',
-    'Referer': 'https://stats.nba.com/',
-    'Origin': 'https://stats.nba.com',
-}
-
-REQUEST_TIMEOUT = 120  # Increased timeout for cloud environments
 
 
 def log_api_call(api_name, endpoint=None, player_id=None, season=None, cache_hit=False):
@@ -47,14 +31,8 @@ def log_api_call(api_name, endpoint=None, player_id=None, season=None, cache_hit
 
 
 def get_current_season():
-    """Get current NBA season (e.g., '2024-25')"""
-    now = datetime.now()
-    # NBA season runs Oct-Jun, so if month >= 10, it's the start of new season
-    # If month < 10, we're in the tail end of previous season
-    if now.month >= 10:  # Season starts in October
-        return f"{now.year}-{str(now.year + 1)[-2:]}"
-    else:
-        return f"{now.year - 1}-{str(now.year)[-2:]}"
+    """Get current NBA season (e.g., '2025-26')"""
+    return "2025-26"
 
 
 def fetch_player_game_log(player_id, season=None, force_refresh=False):
@@ -96,26 +74,18 @@ def fetch_player_game_log(player_id, season=None, force_refresh=False):
                 print(f"[CACHE HIT] {player.full_name} - {len(cached_stats)} games (last updated {most_recent.fetched_at})")
                 return cached_stats
 
-    # Fetch from NBA API
+    # Fetch from NBA API using existing client (with ScraperAPI support)
     print(f"[NBA API] Fetching game log for {player.full_name} ({season})...")
     log_api_call('nba_api', 'playergamelog', player_id, season, cache_hit=False)
 
     try:
-        # NBA API call with custom headers and timeout
-        gamelog = playergamelog.PlayerGameLog(
-            player_id=player.nba_player_id,
-            season=season,
-            headers=CUSTOM_HEADERS,
-            timeout=REQUEST_TIMEOUT
-        )
-        df = gamelog.get_data_frames()[0]
+        # Use existing NBAApiClient (has ScraperAPI, retry logic, proper headers)
+        nba_client = NBAApiClient()
+        df = nba_client.get_player_game_log(player.nba_player_id, season)
 
         if df.empty:
             print(f"[WARNING] No games found for {player.full_name} in {season}")
             return []
-
-        # Rate limiting - be nice to NBA API
-        time.sleep(0.8)  # Max ~75 requests/minute
 
         # Store in database
         stats_objects = []

@@ -7,7 +7,9 @@
       "Bash(cat:*)",
       "Bash(if not exist data mkdir data)",
       "Bash(python database/db.py:*)",
-      "Bash(python scripts/test_caching_system.py:*)"
+      "Bash(python scripts/test_caching_system.py:*)",
+      "Bash(python:*)",
+      "Bash(heroku config:get:*)"
     ],
     "deny": [],
     "ask": []

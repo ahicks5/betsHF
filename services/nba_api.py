@@ -50,15 +50,17 @@ class NBAApiClient:
     """Client for fetching NBA stats and data"""
 
     def __init__(self, max_retries=3, base_delay=2.0):
+        # Current NBA season (2025-26)
         self.current_season = "2025-26"
+
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.scraper_api_key = get_scraper_api_key()
 
         if self.scraper_api_key:
-            print(f"NBA API Client initialized with ScraperAPI (key: {self.scraper_api_key[:8]}...)")
+            print(f"NBA API Client initialized with ScraperAPI (season: {self.current_season}, key: {self.scraper_api_key[:8]}...)")
         else:
-            print("NBA API Client initialized (no proxy configured)")
+            print(f"NBA API Client initialized (season: {self.current_season}, no proxy configured)")
 
     def _request_with_retry(self, api_call_func, description="API call"):
         """
