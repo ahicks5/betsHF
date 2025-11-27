@@ -3,7 +3,17 @@ NBA API Client
 Fetches player stats, game logs, and team data using nba_api
 
 Note: The NBA stats API often blocks/throttles cloud provider IPs (Heroku, AWS, etc).
-This client includes retry logic and custom headers to mitigate these issues.
+This client includes retry logic, custom headers, and proxy support to mitigate these issues.
+
+Proxy Configuration (environment variables):
+    PROXY_URL: Standard HTTP/HTTPS proxy URL
+               Examples:
+               - http://user:pass@proxy.example.com:8080
+               - http://scraperapi:YOUR_API_KEY@proxy-server.scraperapi.com:8001
+
+    Or use service-specific variables:
+    SCRAPER_API_KEY: Your ScraperAPI key (free tier: 1000 requests/month)
+                     Sign up at: https://www.scraperapi.com/
 """
 from nba_api.stats.endpoints import playergamelog, leaguegamefinder, commonteamroster, playercareerstats
 from nba_api.stats.static import players, teams
@@ -11,6 +21,7 @@ import pandas as pd
 from datetime import datetime
 import time
 import random
+import os
 
 
 # Custom headers to mimic browser requests - NBA API blocks many cloud provider IPs
@@ -31,7 +42,33 @@ CUSTOM_HEADERS = {
 }
 
 # Increased timeout for cloud environments (default is 30s which often fails)
-REQUEST_TIMEOUT = 60
+# With proxies, we need even more time
+REQUEST_TIMEOUT = 120
+
+
+def get_proxy_url():
+    """
+    Get proxy URL from environment variables.
+
+    Checks for:
+    1. PROXY_URL - Direct proxy URL
+    2. SCRAPER_API_KEY - ScraperAPI key (constructs proxy URL)
+
+    Returns:
+        str or None: Proxy URL if configured, None otherwise
+    """
+    # Check for direct proxy URL first
+    proxy_url = os.environ.get('PROXY_URL')
+    if proxy_url:
+        return proxy_url
+
+    # Check for ScraperAPI key
+    scraper_api_key = os.environ.get('SCRAPER_API_KEY')
+    if scraper_api_key:
+        # ScraperAPI proxy format
+        return f"http://scraperapi:{scraper_api_key}@proxy-server.scraperapi.com:8001"
+
+    return None
 
 
 class NBAApiClient:
@@ -41,6 +78,19 @@ class NBAApiClient:
         self.current_season = "2025-26"
         self.max_retries = max_retries
         self.base_delay = base_delay
+        self.proxy_url = get_proxy_url()
+
+        if self.proxy_url:
+            # Mask the API key in logs
+            masked_proxy = self.proxy_url
+            if '@' in masked_proxy:
+                parts = masked_proxy.split('@')
+                auth_parts = parts[0].split(':')
+                if len(auth_parts) >= 3:
+                    masked_proxy = f"{auth_parts[0]}:{auth_parts[1]}:****@{parts[1]}"
+            print(f"NBA API Client initialized with proxy: {masked_proxy}")
+        else:
+            print("NBA API Client initialized (no proxy configured)")
 
     def _request_with_retry(self, api_call_func, description="API call"):
         """
@@ -106,12 +156,19 @@ class NBAApiClient:
             season = self.current_season
 
         def make_request():
-            gamelog = playergamelog.PlayerGameLog(
-                player_id=player_id,
-                season=season,
-                headers=CUSTOM_HEADERS,
-                timeout=REQUEST_TIMEOUT
-            )
+            # Build request kwargs
+            kwargs = {
+                'player_id': player_id,
+                'season': season,
+                'headers': CUSTOM_HEADERS,
+                'timeout': REQUEST_TIMEOUT
+            }
+
+            # Add proxy if configured
+            if self.proxy_url:
+                kwargs['proxy'] = self.proxy_url
+
+            gamelog = playergamelog.PlayerGameLog(**kwargs)
             return gamelog.get_data_frames()[0]
 
         try:

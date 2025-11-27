@@ -264,6 +264,22 @@ def get_system_info():
     else:
         print(f"  Running on Heroku: NO (local environment)")
 
+    # Check proxy configuration
+    proxy_url = os.environ.get('PROXY_URL')
+    scraper_api_key = os.environ.get('SCRAPER_API_KEY')
+    if proxy_url:
+        # Mask credentials in output
+        if '@' in proxy_url:
+            parts = proxy_url.split('@')
+            print(f"  Proxy configured: ****@{parts[1]}")
+        else:
+            print(f"  Proxy configured: {proxy_url}")
+    elif scraper_api_key:
+        print(f"  Proxy configured: ScraperAPI (key: {scraper_api_key[:8]}...)")
+    else:
+        print(f"  Proxy configured: NO")
+        print(f"    → Set SCRAPER_API_KEY or PROXY_URL to enable proxy")
+
     # Get external IP if possible
     try:
         import urllib.request
@@ -316,9 +332,16 @@ def main():
         if results.get('HTTP_Raw') and not results.get('nba_api'):
             print("  - Raw HTTP works but nba_api fails. Library configuration issue.")
         if not results.get('HTTP_Raw') and not results.get('nba_api'):
-            print("  - stats.nba.com may be blocking this IP (common with cloud providers).")
-            print("  - Consider using a proxy service or running during off-peak hours.")
-            print("  - Try increasing timeouts further (90s+).")
+            print("  - stats.nba.com is blocking this IP (common with cloud providers).")
+            print("")
+            print("  To fix this, configure a proxy:")
+            print("    1. Sign up for ScraperAPI (free tier: 1000 requests/month)")
+            print("       https://www.scraperapi.com/")
+            print("")
+            print("    2. Set the environment variable on Heroku:")
+            print("       heroku config:set SCRAPER_API_KEY=your_api_key")
+            print("")
+            print("    3. Run this diagnostic again to verify it works")
 
     return 0 if all_passed else 1
 
