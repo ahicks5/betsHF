@@ -275,40 +275,133 @@
 <div class="card">
     <h3>Cumulative Profit Trend</h3>
     <p style="margin-top: 0.5rem; color: var(--text-dim);">Track how your bankroll has grown (or shrunk) over time</p>
-    <div style="margin-top: 1.5rem; overflow-x: auto;">
-        <table style="font-size: 0.85rem;">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Cumulative Profit</th>
-                    <th>Trend</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for i in range([cumulative_profit_data|length, 15]|min) %}
-                {% set idx = cumulative_profit_data|length - 1 - i %}
-                {% set data = cumulative_profit_data[idx] %}
-                {% set prev_profit = cumulative_profit_data[idx - 1].profit if idx > 0 else 0 %}
-                <tr>
-                    <td>{{ data.date }}</td>
-                    <td style="color: {% if data.profit > 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: bold; font-family: 'JetBrains Mono', monospace;">
-                        ${{ data.profit }}
-                    </td>
-                    <td>
-                        {% if data.profit > prev_profit %}
-                            <span style="color: var(--success);">↗ Up</span>
-                        {% elif data.profit < prev_profit %}
-                            <span style="color: var(--danger);">↘ Down</span>
-                        {% else %}
-                            <span style="color: var(--text-dim);">→ Flat</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+
+    <!-- Chart -->
+    <div style="margin-top: 1.5rem; height: 300px; position: relative;">
+        <canvas id="profitChart"></canvas>
     </div>
+
+    <!-- Data Table (collapsed by default) -->
+    <details style="margin-top: 2rem;">
+        <summary style="cursor: pointer; font-weight: bold; padding: 0.5rem; background: var(--bg-secondary); border-radius: 4px;">
+            📊 View Data Table
+        </summary>
+        <div style="margin-top: 1rem; overflow-x: auto;">
+            <table style="font-size: 0.85rem;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Cumulative Profit</th>
+                        <th>Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in range([cumulative_profit_data|length, 15]|min) %}
+                    {% set idx = cumulative_profit_data|length - 1 - i %}
+                    {% set data = cumulative_profit_data[idx] %}
+                    {% set prev_profit = cumulative_profit_data[idx - 1].profit if idx > 0 else 0 %}
+                    <tr>
+                        <td>{{ data.date }}</td>
+                        <td style="color: {% if data.profit > 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: bold; font-family: 'JetBrains Mono', monospace;">
+                            ${{ data.profit }}
+                        </td>
+                        <td>
+                            {% if data.profit > prev_profit %}
+                                <span style="color: var(--success);">↗ Up</span>
+                            {% elif data.profit < prev_profit %}
+                                <span style="color: var(--danger);">↘ Down</span>
+                            {% else %}
+                                <span style="color: var(--text-dim);">→ Flat</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </details>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Profit Over Time Chart
+const profitData = {{ cumulative_profit_data|tojson }};
+const dates = profitData.map(d => d.date);
+const profits = profitData.map(d => d.profit);
+
+const ctx = document.getElementById('profitChart').getContext('2d');
+new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: dates,
+        datasets: [{
+            label: 'Cumulative Profit ($)',
+            data: profits,
+            borderColor: profits[profits.length - 1] >= 0 ? '#27ae60' : '#e74c3c',
+            backgroundColor: profits[profits.length - 1] >= 0 ? 'rgba(39, 174, 96, 0.1)' : 'rgba(231, 76, 60, 0.1)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 3,
+            pointHoverRadius: 6,
+            pointBackgroundColor: profits[profits.length - 1] >= 0 ? '#27ae60' : '#e74c3c',
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                labels: {
+                    color: '#e0e0e0',
+                    font: {
+                        size: 12
+                    }
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                titleColor: '#e0e0e0',
+                bodyColor: '#e0e0e0',
+                borderColor: '#444',
+                borderWidth: 1,
+                callbacks: {
+                    label: function(context) {
+                        let value = context.parsed.y;
+                        return 'Profit: $' + value.toFixed(2);
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                ticks: {
+                    color: '#999',
+                    maxRotation: 45,
+                    minRotation: 45,
+                    autoSkip: true,
+                    maxTicksLimit: 20
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.05)'
+                }
+            },
+            y: {
+                ticks: {
+                    color: '#999',
+                    callback: function(value) {
+                        return '$' + value.toFixed(0);
+                    }
+                },
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.05)'
+                }
+            }
+        }
+    }
+});
+</script>
 
 <!-- DAILY PROFIT -->
 <h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Recent Daily Performance</h2>
