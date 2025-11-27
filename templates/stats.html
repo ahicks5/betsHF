@@ -37,14 +37,14 @@
     <div class="card">
         <h3 style="color: var(--success);">Winning Bets</h3>
         <div style="text-align: center; padding: 1.5rem 0;">
-            <h2 style="color: var(--success); margin: 0;">{{ avg_winning_odds|format_odds }}</h2>
+            <h2 style="color: var(--success); margin: 0;">{% if avg_winning_odds > 0 %}+{% endif %}{{ avg_winning_odds|round(1) }}</h2>
             <p style="margin-top: 0.5rem; color: var(--text-dim);">Average Odds</p>
         </div>
     </div>
     <div class="card">
         <h3 style="color: var(--danger);">Losing Bets</h3>
         <div style="text-align: center; padding: 1.5rem 0;">
-            <h2 style="color: var(--danger); margin: 0;">{{ avg_losing_odds|format_odds }}</h2>
+            <h2 style="color: var(--danger); margin: 0;">{% if avg_losing_odds > 0 %}+{% endif %}{{ avg_losing_odds|round(1) }}</h2>
             <p style="margin-top: 0.5rem; color: var(--text-dim);">Average Odds</p>
         </div>
     </div>

@@ -118,7 +118,7 @@ class PlayerGameStats(Base):
 
     id = Column(Integer, primary_key=True)
     player_id = Column(Integer, ForeignKey("players.id"), nullable=False)
-    game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
+    game_id = Column(Integer, ForeignKey("games.id"), nullable=True)  # Nullable - we cache all games, not just ones we bet on
     nba_game_id = Column(String(50), nullable=False)
     game_date = Column(DateTime, nullable=False)
 
