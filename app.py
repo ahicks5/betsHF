@@ -316,6 +316,184 @@ def stats():
         first_date = None
         last_date = None
 
+    # ===== NEW ADVANCED ANALYTICS =====
+
+    # Average odds for wins vs losses
+    winning_odds = []
+    losing_odds = []
+    for play in graded_plays:
+        odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+        if odds:
+            if play.was_correct == True:
+                winning_odds.append(odds)
+            else:
+                losing_odds.append(odds)
+
+    avg_winning_odds = sum(winning_odds) / len(winning_odds) if winning_odds else 0
+    avg_losing_odds = sum(losing_odds) / len(losing_odds) if losing_odds else 0
+
+    # Over vs Under performance
+    over_plays = [p for p in graded_plays if p.recommendation == 'OVER']
+    under_plays = [p for p in graded_plays if p.recommendation == 'UNDER']
+
+    over_wins = len([p for p in over_plays if p.was_correct == True])
+    under_wins = len([p for p in under_plays if p.was_correct == True])
+
+    over_win_rate = (over_wins / len(over_plays) * 100) if over_plays else 0
+    under_win_rate = (under_wins / len(under_plays) * 100) if under_plays else 0
+
+    # Calculate profit for Over vs Under
+    over_profit = 0
+    under_profit = 0
+    for play in over_plays:
+        if play.was_correct == True:
+            odds = play.over_odds
+            if odds and odds < 0:
+                over_profit += bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                over_profit += bet_amount * (odds / 100)
+            else:
+                over_profit += bet_amount
+        else:
+            over_profit -= bet_amount
+
+    for play in under_plays:
+        if play.was_correct == True:
+            odds = play.under_odds
+            if odds and odds < 0:
+                under_profit += bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                under_profit += bet_amount * (odds / 100)
+            else:
+                under_profit += bet_amount
+        else:
+            under_profit -= bet_amount
+
+    # Player performance rankings
+    player_stats = {}
+    for play in graded_plays:
+        name = play.player_name
+        if name not in player_stats:
+            player_stats[name] = {'wins': 0, 'total': 0, 'profit': 0}
+
+        player_stats[name]['total'] += 1
+        if play.was_correct == True:
+            player_stats[name]['wins'] += 1
+            odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+            if odds and odds < 0:
+                player_stats[name]['profit'] += bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                player_stats[name]['profit'] += bet_amount * (odds / 100)
+            else:
+                player_stats[name]['profit'] += bet_amount
+        else:
+            player_stats[name]['profit'] -= bet_amount
+
+    # Calculate win rate for each player
+    for name in player_stats:
+        player_stats[name]['win_rate'] = (player_stats[name]['wins'] / player_stats[name]['total'] * 100)
+
+    # Sort by profit
+    top_players = sorted(player_stats.items(), key=lambda x: x[1]['profit'], reverse=True)[:10]
+    worst_players = sorted(player_stats.items(), key=lambda x: x[1]['profit'])[:10]
+
+    # Bookmaker analysis
+    bookmaker_stats = {}
+    for play in graded_plays:
+        bookie = play.bookmaker or 'Unknown'
+        if bookie not in bookmaker_stats:
+            bookmaker_stats[bookie] = {'wins': 0, 'total': 0, 'profit': 0}
+
+        bookmaker_stats[bookie]['total'] += 1
+        if play.was_correct == True:
+            bookmaker_stats[bookie]['wins'] += 1
+            odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+            if odds and odds < 0:
+                bookmaker_stats[bookie]['profit'] += bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                bookmaker_stats[bookie]['profit'] += bet_amount * (odds / 100)
+            else:
+                bookmaker_stats[bookie]['profit'] += bet_amount
+        else:
+            bookmaker_stats[bookie]['profit'] -= bet_amount
+
+    for bookie in bookmaker_stats:
+        bookmaker_stats[bookie]['win_rate'] = (bookmaker_stats[bookie]['wins'] / bookmaker_stats[bookie]['total'] * 100)
+
+    # Z-score effectiveness (do higher z-scores win more?)
+    z_score_ranges = {
+        '0.5-0.75': [],
+        '0.75-1.0': [],
+        '1.0-1.5': [],
+        '1.5+': []
+    }
+
+    for play in graded_plays:
+        abs_z = abs(play.z_score) if play.z_score else 0
+        if 0.5 <= abs_z < 0.75:
+            z_score_ranges['0.5-0.75'].append(play)
+        elif 0.75 <= abs_z < 1.0:
+            z_score_ranges['0.75-1.0'].append(play)
+        elif 1.0 <= abs_z < 1.5:
+            z_score_ranges['1.0-1.5'].append(play)
+        elif abs_z >= 1.5:
+            z_score_ranges['1.5+'].append(play)
+
+    z_score_performance = {}
+    for range_name, plays_list in z_score_ranges.items():
+        if plays_list:
+            range_wins = len([p for p in plays_list if p.was_correct == True])
+            z_score_performance[range_name] = {
+                'win_rate': (range_wins / len(plays_list) * 100),
+                'total': len(plays_list),
+                'wins': range_wins
+            }
+        else:
+            z_score_performance[range_name] = {'win_rate': 0, 'total': 0, 'wins': 0}
+
+    # Cumulative profit over time (for charting)
+    plays_by_date = sorted(graded_plays, key=lambda x: x.created_at)
+    cumulative_profit_data = []
+    running_profit = 0
+
+    for play in plays_by_date:
+        if play.was_correct == True:
+            odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+            if odds and odds < 0:
+                running_profit += bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                running_profit += bet_amount * (odds / 100)
+            else:
+                running_profit += bet_amount
+        else:
+            running_profit -= bet_amount
+
+        cumulative_profit_data.append({
+            'date': utc_to_local(play.created_at).strftime('%Y-%m-%d'),
+            'profit': round(running_profit, 2)
+        })
+
+    # Daily profit breakdown
+    daily_profit = {}
+    for play in graded_plays:
+        date_str = utc_to_local(play.created_at).strftime('%Y-%m-%d')
+        if date_str not in daily_profit:
+            daily_profit[date_str] = 0
+
+        if play.was_correct == True:
+            odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+            if odds and odds < 0:
+                daily_profit[date_str] += bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                daily_profit[date_str] += bet_amount * (odds / 100)
+            else:
+                daily_profit[date_str] += bet_amount
+        else:
+            daily_profit[date_str] -= bet_amount
+
+    # Sort by date
+    daily_profit_sorted = sorted(daily_profit.items(), key=lambda x: x[0], reverse=True)[:30]  # Last 30 days
+
     return render_template('stats.html',
                          total_plays=total_plays,
                          high_confidence=high_confidence,
@@ -336,7 +514,22 @@ def stats():
                          days_tracked=days_tracked,
                          first_date=first_date,
                          last_date=last_date,
-                         bet_amount=bet_amount)
+                         bet_amount=bet_amount,
+                         # New advanced analytics
+                         avg_winning_odds=avg_winning_odds,
+                         avg_losing_odds=avg_losing_odds,
+                         over_win_rate=over_win_rate,
+                         under_win_rate=under_win_rate,
+                         over_profit=over_profit,
+                         under_profit=under_profit,
+                         over_total=len(over_plays),
+                         under_total=len(under_plays),
+                         top_players=top_players,
+                         worst_players=worst_players,
+                         bookmaker_stats=bookmaker_stats,
+                         z_score_performance=z_score_performance,
+                         cumulative_profit_data=cumulative_profit_data,
+                         daily_profit=daily_profit_sorted)
 
 
 def get_game_status(game, now=None):

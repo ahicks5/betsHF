@@ -1,49 +1,100 @@
 {% extends "base.html" %}
 
-{% block title %}Statistics - NBA Props Analyzer{% endblock %}
+{% block title %}Analytics Dashboard - NBA Props Analyzer{% endblock %}
 
 {% block content %}
-<h2>Overall Statistics</h2>
+<h2>Analytics Dashboard</h2>
 
+<!-- KEY METRICS -->
 <div class="stat-grid">
     <div class="stat-box">
         <h3>{{ total_plays }}</h3>
         <p>Total Plays</p>
+        <small>{{ high_confidence }} High / {{ medium_confidence }} Medium</small>
     </div>
     <div class="stat-box">
         <h3>{{ total_graded }}</h3>
-        <p>Graded</p>
+        <p>Graded Plays</p>
+        <small>{{ wins }}W - {{ losses }}L</small>
     </div>
     <div class="stat-box">
-        <h3>{{ days_tracked }}</h3>
-        <p>Days Tracked</p>
+        <h3>{{ win_rate|format_float(1) }}%</h3>
+        <p>Win Rate</p>
+        <small>{% if win_rate >= 55 %}🔥 Excellent{% elif win_rate >= 50 %}✅ Profitable{% else %}⚠️ Below 50%{% endif %}</small>
+    </div>
+    <div class="stat-box" style="{% if total_profit > 0 %}border-top: 3px solid var(--success);{% else %}border-top: 3px solid var(--danger);{% endif %}">
+        <h3>${{ total_profit|format_float(2) }}</h3>
+        <p>Total Profit</p>
+        <small>{% if total_profit > 0 %}+{% endif %}{{ roi|format_float(1) }}% ROI</small>
     </div>
 </div>
 
 {% if total_graded > 0 %}
-<h2 style="margin-top: 2rem; margin-bottom: 1rem;">Performance Metrics</h2>
 
-<div class="stat-grid">
-    <div class="stat-box" style="{% if win_rate >= 55 %}background: #d5f4e6;{% elif win_rate >= 50 %}background: #fff3cd;{% else %}background: #f8d7da;{% endif %}">
-        <h3>{{ win_rate|format_float(1) }}%</h3>
-        <p>Win Rate</p>
-        <small>{{ wins }}W - {{ losses }}L</small>
+<!-- ODDS ANALYSIS -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Odds Analysis</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+    <div class="card">
+        <h3 style="color: var(--success);">Winning Bets</h3>
+        <div style="text-align: center; padding: 1.5rem 0;">
+            <h2 style="color: var(--success); margin: 0;">{{ avg_winning_odds|format_odds }}</h2>
+            <p style="margin-top: 0.5rem; color: var(--text-dim);">Average Odds</p>
+        </div>
     </div>
-    <div class="stat-box" style="{% if total_profit > 0 %}background: #d5f4e6;{% else %}background: #f8d7da;{% endif %}">
-        <h3>${{ total_profit|format_float(2) }}</h3>
-        <p>Total Profit</p>
-        <small>(on ${{ bet_amount }} bets)</small>
-    </div>
-    <div class="stat-box" style="{% if roi > 0 %}background: #d5f4e6;{% else %}background: #f8d7da;{% endif %}">
-        <h3>{{ roi|format_float(1) }}%</h3>
-        <p>ROI</p>
-        <small>Return on Investment</small>
+    <div class="card">
+        <h3 style="color: var(--danger);">Losing Bets</h3>
+        <div style="text-align: center; padding: 1.5rem 0;">
+            <h2 style="color: var(--danger); margin: 0;">{{ avg_losing_odds|format_odds }}</h2>
+            <p style="margin-top: 0.5rem; color: var(--text-dim);">Average Odds</p>
+        </div>
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+<!-- OVER VS UNDER PERFORMANCE -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Over vs Under Performance</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+    <div class="card" style="border-left: 4px solid var(--success);">
+        <h3>OVER Bets</h3>
+        <div style="margin-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Win Rate:</span>
+                <strong style="color: {% if over_win_rate >= 50 %}var(--success){% else %}var(--danger){% endif %};">{{ over_win_rate|format_float(1) }}%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Record:</span>
+                <strong>{{ (over_total * over_win_rate / 100)|int }}-{{ over_total - (over_total * over_win_rate / 100)|int }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Profit:</span>
+                <strong style="color: {% if over_profit > 0 %}var(--success){% else %}var(--danger){% endif %};">${{ over_profit|format_float(2) }}</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="border-left: 4px solid var(--accent-blue);">
+        <h3>UNDER Bets</h3>
+        <div style="margin-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Win Rate:</span>
+                <strong style="color: {% if under_win_rate >= 50 %}var(--success){% else %}var(--danger){% endif %};">{{ under_win_rate|format_float(1) }}%</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span>Record:</span>
+                <strong>{{ (under_total * under_win_rate / 100)|int }}-{{ under_total - (under_total * under_win_rate / 100)|int }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+                <span>Profit:</span>
+                <strong style="color: {% if under_profit > 0 %}var(--success){% else %}var(--danger){% endif %};">${{ under_profit|format_float(2) }}</strong>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PERFORMANCE BREAKDOWNS -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Performance Breakdowns</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem;">
     <div class="card">
-        <h3>Performance by Confidence</h3>
+        <h3>By Confidence Level</h3>
         <table style="margin-top: 1rem;">
             <thead>
                 <tr>
@@ -51,17 +102,19 @@
                     <th>Record</th>
                     <th>Win Rate</th>
                     <th>Profit</th>
+                    <th>ROI</th>
                 </tr>
             </thead>
             <tbody>
-                {% for conf in ['High', 'Medium']|sort %}
+                {% for conf in ['High', 'Medium'] %}
                 <tr>
                     <td><strong>{{ conf }}</strong></td>
                     <td>{{ win_rate_by_conf[conf].wins }}-{{ win_rate_by_conf[conf].total - win_rate_by_conf[conf].wins }}</td>
-                    <td><strong>{{ win_rate_by_conf[conf].rate|format_float(1) }}%</strong></td>
-                    <td style="{% if profit_by_conf[conf] > 0 %}color: #27ae60;{% else %}color: #e74c3c;{% endif %} font-weight: bold;">
+                    <td><strong style="color: {% if win_rate_by_conf[conf].rate >= 50 %}var(--success){% else %}var(--danger){% endif %};">{{ win_rate_by_conf[conf].rate|format_float(1) }}%</strong></td>
+                    <td style="color: {% if profit_by_conf[conf] > 0 %}var(--success){% else %}var(--danger){% endif %};">
                         ${{ profit_by_conf[conf]|format_float(2) }}
                     </td>
+                    <td>{{ ((profit_by_conf[conf] / (win_rate_by_conf[conf].total * bet_amount)) * 100)|format_float(1) if win_rate_by_conf[conf].total > 0 else 0 }}%</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -69,7 +122,7 @@
     </div>
 
     <div class="card">
-        <h3>Performance by Stat Type</h3>
+        <h3>By Stat Type</h3>
         <table style="margin-top: 1rem;">
             <thead>
                 <tr>
@@ -84,8 +137,8 @@
                 <tr>
                     <td><strong>{{ stat }}</strong></td>
                     <td>{{ data.wins }}-{{ data.total - data.wins }}</td>
-                    <td><strong>{{ data.rate|format_float(1) }}%</strong></td>
-                    <td style="{% if profit_by_stat[stat] > 0 %}color: #27ae60;{% else %}color: #e74c3c;{% endif %} font-weight: bold;">
+                    <td><strong style="color: {% if data.rate >= 50 %}var(--success){% else %}var(--danger){% endif %};">{{ data.rate|format_float(1) }}%</strong></td>
+                    <td style="color: {% if profit_by_stat[stat] > 0 %}var(--success){% else %}var(--danger){% endif %};">
                         ${{ profit_by_stat[stat]|format_float(2) }}
                     </td>
                 </tr>
@@ -94,111 +147,223 @@
         </table>
     </div>
 </div>
-{% else %}
-<div class="card" style="margin-top: 2rem;">
-    <h3>No Results Yet</h3>
-    <p>Once games are completed and results are added, performance metrics will appear here.</p>
-    <p style="margin-top: 1rem;"><strong>To add results:</strong> You'll need to create a script that fetches actual game stats from NBA API and updates the <code>actual_result</code> and <code>was_correct</code> fields in the plays table.</p>
-</div>
-{% endif %}
 
-<h2 style="margin-top: 2rem; margin-bottom: 1rem;">Play Distribution</h2>
-
-{% if total_plays > 0 %}
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 1.5rem;">
-    <div class="card">
-        <h3>By Stat Type</h3>
-        <table style="margin-top: 1rem;">
-            <thead>
-                <tr>
-                    <th>Stat</th>
-                    <th>Count</th>
-                    <th>Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for stat, count in stat_counts.items()|sort(attribute='1', reverse=True) %}
-                <tr>
-                    <td>{{ stat }}</td>
-                    <td>{{ count }}</td>
-                    <td>{{ (count / total_plays * 100)|format_float(1) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="card">
-        <h3>By Recommendation</h3>
-        <table style="margin-top: 1rem;">
-            <thead>
-                <tr>
-                    <th>Type</th>
-                    <th>Count</th>
-                    <th>Percentage</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for rec, count in rec_counts.items()|sort(attribute='1', reverse=True) %}
-                <tr>
-                    <td>
-                        {% if rec == 'OVER' %}
-                            <span class="badge badge-over">OVER</span>
-                        {% elif rec == 'UNDER' %}
-                            <span class="badge badge-under">UNDER</span>
-                        {% else %}
-                            <span class="badge badge-no-play">NO PLAY</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ count }}</td>
-                    <td>{{ (count / total_plays * 100)|format_float(1) }}%</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
+<!-- Z-SCORE EFFECTIVENESS -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Z-Score Effectiveness</h2>
 <div class="card">
-    <h3>Analysis Metrics</h3>
-    <table style="margin-top: 1rem;">
-        <tr>
-            <th>Metric</th>
-            <th>Value</th>
-        </tr>
-        <tr>
-            <td>Average Absolute Z-Score</td>
-            <td>{{ avg_z_score|format_float }}</td>
-        </tr>
-        {% if first_date %}
-        <tr>
-            <td>First Play Date</td>
-            <td>{{ first_date.strftime('%B %d, %Y') }}</td>
-        </tr>
-        {% endif %}
-        {% if last_date %}
-        <tr>
-            <td>Last Play Date</td>
-            <td>{{ last_date.strftime('%B %d, %Y') }}</td>
-        </tr>
-        {% endif %}
+    <h3>Win Rate by Z-Score Range</h3>
+    <p style="margin-top: 0.5rem; color: var(--text-dim);">Does higher confidence (z-score) actually predict better outcomes?</p>
+    <table style="margin-top: 1.5rem;">
+        <thead>
+            <tr>
+                <th>Z-Score Range</th>
+                <th>Plays</th>
+                <th>Record</th>
+                <th>Win Rate</th>
+                <th>Assessment</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for range in ['1.5+', '1.0-1.5', '0.75-1.0', '0.5-0.75'] %}
+            <tr>
+                <td><strong>{{ range }}</strong> {% if range == '1.5+' %}(Highest){% elif range == '0.5-0.75' %}(Lowest){% endif %}</td>
+                <td>{{ z_score_performance[range].total }}</td>
+                <td>{{ z_score_performance[range].wins }}-{{ z_score_performance[range].total - z_score_performance[range].wins }}</td>
+                <td><strong style="color: {% if z_score_performance[range].win_rate >= 55 %}var(--success){% elif z_score_performance[range].win_rate >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ z_score_performance[range].win_rate|format_float(1) }}%</strong></td>
+                <td>
+                    {% if z_score_performance[range].win_rate >= 60 %}
+                        <span class="badge badge-high">🔥 Excellent</span>
+                    {% elif z_score_performance[range].win_rate >= 55 %}
+                        <span class="badge badge-medium">Strong</span>
+                    {% elif z_score_performance[range].win_rate >= 50 %}
+                        <span class="badge" style="background: var(--warning);">OK</span>
+                    {% else %}
+                        <span class="badge" style="background: var(--danger);">Weak</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 </div>
 
-<div class="card">
-    <h3>About the Analysis</h3>
-    <p style="margin-bottom: 1rem;">This analyzer uses a simple, interpretable statistical approach:</p>
-    <ul style="margin-left: 2rem; line-height: 2;">
-        <li><strong>Expected Value:</strong> 50% season average + 50% last 5 games average</li>
-        <li><strong>Deviation:</strong> How far the Vegas line is from expected value</li>
-        <li><strong>Z-Score:</strong> Standardized deviation (accounts for variability)</li>
-    </ul>
-    <p style="margin-top: 1rem;"><strong>Strategy:</strong> Follow Vegas deviations - when the line differs significantly from expected value, there's likely information we don't have.</p>
+<!-- TOP & WORST PLAYERS -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Player Performance</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 1.5rem;">
+    <div class="card" style="border-top: 3px solid var(--success);">
+        <h3>🏆 Top 10 Most Profitable Players</h3>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Record</th>
+                    <th>Win %</th>
+                    <th>Profit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player_name, stats in top_players %}
+                <tr>
+                    <td><strong>{{ player_name[:20] }}</strong></td>
+                    <td>{{ stats.wins }}-{{ stats.total - stats.wins }}</td>
+                    <td>{{ stats.win_rate|format_float(1) }}%</td>
+                    <td style="color: var(--success); font-weight: bold;">${{ stats.profit|format_float(2) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card" style="border-top: 3px solid var(--danger);">
+        <h3>💸 Worst 10 Players (By Profit)</h3>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Record</th>
+                    <th>Win %</th>
+                    <th>Loss</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for player_name, stats in worst_players %}
+                <tr>
+                    <td><strong>{{ player_name[:20] }}</strong></td>
+                    <td>{{ stats.wins }}-{{ stats.total - stats.wins }}</td>
+                    <td>{{ stats.win_rate|format_float(1) }}%</td>
+                    <td style="color: var(--danger); font-weight: bold;">${{ stats.profit|format_float(2) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<!-- BOOKMAKER ANALYSIS -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Bookmaker Analysis</h2>
+<div class="card">
+    <h3>Performance by Sportsbook</h3>
+    <p style="margin-top: 0.5rem; color: var(--text-dim);">Which bookmakers provide the best value?</p>
+    <table style="margin-top: 1.5rem;">
+        <thead>
+            <tr>
+                <th>Bookmaker</th>
+                <th>Plays</th>
+                <th>Record</th>
+                <th>Win Rate</th>
+                <th>Profit</th>
+                <th>ROI</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bookie, stats in bookmaker_stats.items()|sort(attribute='1.profit', reverse=True) %}
+            <tr>
+                <td><strong>{{ bookie }}</strong></td>
+                <td>{{ stats.total }}</td>
+                <td>{{ stats.wins }}-{{ stats.total - stats.wins }}</td>
+                <td><strong style="color: {% if stats.win_rate >= 50 %}var(--success){% else %}var(--danger){% endif %};">{{ stats.win_rate|format_float(1) }}%</strong></td>
+                <td style="color: {% if stats.profit > 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: bold;">${{ stats.profit|format_float(2) }}</td>
+                <td>{{ ((stats.profit / (stats.total * bet_amount)) * 100)|format_float(1) }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- PROFIT OVER TIME -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Profit Over Time</h2>
+<div class="card">
+    <h3>Cumulative Profit Trend</h3>
+    <p style="margin-top: 0.5rem; color: var(--text-dim);">Track how your bankroll has grown (or shrunk) over time</p>
+    <div style="margin-top: 1.5rem; overflow-x: auto;">
+        <table style="font-size: 0.85rem;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Cumulative Profit</th>
+                    <th>Trend</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range([cumulative_profit_data|length, 15]|min) %}
+                {% set idx = cumulative_profit_data|length - 1 - i %}
+                {% set data = cumulative_profit_data[idx] %}
+                {% set prev_profit = cumulative_profit_data[idx - 1].profit if idx > 0 else 0 %}
+                <tr>
+                    <td>{{ data.date }}</td>
+                    <td style="color: {% if data.profit > 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: bold; font-family: 'JetBrains Mono', monospace;">
+                        ${{ data.profit }}
+                    </td>
+                    <td>
+                        {% if data.profit > prev_profit %}
+                            <span style="color: var(--success);">↗ Up</span>
+                        {% elif data.profit < prev_profit %}
+                            <span style="color: var(--danger);">↘ Down</span>
+                        {% else %}
+                            <span style="color: var(--text-dim);">→ Flat</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- DAILY PROFIT -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Recent Daily Performance</h2>
+<div class="card">
+    <h3>Last 30 Days - Profit/Loss by Date</h3>
+    <table style="margin-top: 1.5rem;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Daily P/L</th>
+                <th>Performance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for date, profit in daily_profit[:15] %}
+            <tr>
+                <td>{{ date }}</td>
+                <td style="color: {% if profit > 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: bold; font-family: 'JetBrains Mono', monospace;">
+                    {% if profit > 0 %}+{% endif %}${{ profit|format_float(2) }}
+                </td>
+                <td>
+                    {% if profit > 10 %}
+                        <span class="badge badge-high">🔥 Great Day</span>
+                    {% elif profit > 0 %}
+                        <span class="badge badge-over">Profitable</span>
+                    {% elif profit == 0 %}
+                        <span class="badge badge-no-play">Break Even</span>
+                    {% else %}
+                        <span class="badge" style="background: var(--danger);">Loss</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
 {% else %}
-<div class="empty-state">
-    <h2>No data yet</h2>
-    <p>Start running daily analysis to see statistics here.</p>
+<div class="card" style="margin-top: 2rem;">
+    <h3>No Results Yet</h3>
+    <p>Once games are completed and results are collected, comprehensive analytics will appear here.</p>
+    <p style="margin-top: 1rem;"><strong>To collect results:</strong> Run <code>python scripts/collect_results.py</code></p>
 </div>
 {% endif %}
+
+<!-- ABOUT SECTION -->
+<div class="card" style="margin-top: 2.5rem;">
+    <h3>About This Dashboard</h3>
+    <p style="margin-bottom: 1rem;">This comprehensive analytics dashboard tracks all aspects of betting performance to help identify what works and what doesn't.</p>
+    <ul style="margin-left: 2rem; line-height: 2;">
+        <li><strong>Win Rate:</strong> Percentage of bets that won vs total graded bets</li>
+        <li><strong>ROI:</strong> Return on investment - total profit as % of total amount wagered</li>
+        <li><strong>Z-Score:</strong> Statistical measure of how far the Vegas line deviates from expected value</li>
+        <li><strong>Cumulative Profit:</strong> Running total showing bankroll growth over time</li>
+    </ul>
+</div>
+
 {% endblock %}
