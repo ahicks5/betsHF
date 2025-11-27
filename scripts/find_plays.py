@@ -53,6 +53,7 @@ def export_detailed_csv(analyses, filename=None):
             'Formula',
             'Expected',
             'Std_Dev',
+            'Games_Played',
             'Deviation',
             'Z_Score',
             'Recommendation',
@@ -78,6 +79,7 @@ def export_detailed_csv(analyses, filename=None):
                 'Formula': formula,
                 'Expected': a['expected_value'],
                 'Std_Dev': a['std_dev'],
+                'Games_Played': a.get('games_played', 'N/A'),
                 'Deviation': a['deviation'],
                 'Z_Score': a['z_score'],
                 'Recommendation': a['recommendation'],
@@ -110,6 +112,7 @@ def save_plays_to_db(session, analyses_with_props):
                 std_dev=analysis['std_dev'],
                 deviation=analysis['deviation'],
                 z_score=analysis['z_score'],
+                games_played=analysis.get('games_played', 0),
                 recommendation=analysis['recommendation'],
                 confidence=analysis['confidence'],
                 bookmaker=analysis['bookmaker'],
@@ -134,6 +137,14 @@ def analyze_all_props():
     analyzer = CachedPropAnalyzer()
 
     print("=== Analyzing Today's Props ===\n")
+
+    # Clear out only UNGRADED plays to avoid duplicates
+    # Keep historical plays that have results (was_correct is not None)
+    ungraded_plays = session.query(Play).filter(Play.was_correct == None).all()
+    for play in ungraded_plays:
+        session.delete(play)
+    session.commit()
+    print(f"[OK] Cleared {len(ungraded_plays)} ungraded plays from database\n")
 
     # Get all latest props
     props = session.query(PropLine).filter_by(is_latest=True).all()
@@ -191,9 +202,7 @@ def analyze_all_props():
             continue
 
     # Deduplicate props - keep only ONE prop per player+stat
-    # Pick the best line for the bet direction:
-    # - For OVER: pick LOWEST line (easier to hit)
-    # - For UNDER: pick HIGHEST line (easier to hit)
+    # Pick the play with the STRONGEST SIGNAL (highest absolute z-score)
     player_stat_best = {}
     player_stat_best_with_props = {}
 
@@ -206,22 +215,11 @@ def analyze_all_props():
             player_stat_best_with_props[key] = item
         else:
             current = player_stat_best[key]
-            recommendation = analysis['recommendation']
 
-            # Pick better line based on recommendation
-            if recommendation == "OVER":
-                # For OVER, lower line is better
-                if analysis['line_value'] < current['line_value']:
-                    player_stat_best[key] = analysis
-                    player_stat_best_with_props[key] = item
-            elif recommendation == "UNDER":
-                # For UNDER, higher line is better
-                if analysis['line_value'] > current['line_value']:
-                    player_stat_best[key] = analysis
-                    player_stat_best_with_props[key] = item
-            else:
-                # For NO PLAY, just keep first one
-                pass
+            # Keep the play with the highest absolute z-score (strongest signal)
+            if abs(analysis['z_score']) > abs(current['z_score']):
+                player_stat_best[key] = analysis
+                player_stat_best_with_props[key] = item
 
     # Convert back to lists
     all_analyses = list(player_stat_best.values())

@@ -27,6 +27,9 @@ wheels/
 *.db
 props.db
 
+# Analysis exports
+analysis_details_*.csv
+
 # Environment variables
 .env
 

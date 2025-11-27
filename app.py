@@ -208,9 +208,6 @@ def stats():
     losses = len([p for p in graded_plays if p.was_correct == False])
     win_rate = (wins / total_graded * 100) if total_graded > 0 else 0
 
-    # DEBUG: Print to console
-    print(f"DEBUG STATS: Graded={total_graded}, Wins={wins}, Losses={losses}, WinRate={win_rate:.1f}%")
-
     # Calculate profit/loss based on American odds ($10 bets)
     bet_amount = 10
     total_profit = 0
@@ -319,10 +316,6 @@ def stats():
         first_date = None
         last_date = None
 
-    # DEBUG: Print right before rendering
-    print(f"DEBUG BEFORE RENDER: wins={wins}, losses={losses}")
-    print(f"DEBUG win_rate_by_conf: {win_rate_by_conf}")
-
     return render_template('stats.html',
                          total_plays=total_plays,
                          high_confidence=high_confidence,
@@ -385,6 +378,14 @@ def format_float(value, decimals=2):
     if value is None:
         return '-'
     return f"{value:.{decimals}f}"
+
+
+@app.template_filter('format_line')
+def format_line(value):
+    """Format line value to always show 1 decimal"""
+    if value is None:
+        return '-'
+    return f"{value:.1f}"
 
 
 @app.template_filter('game_status')

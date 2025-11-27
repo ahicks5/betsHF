@@ -22,3 +22,9 @@ flask>=2.3.0
 
 # Timezone handling
 pytz>=2023.0
+
+# Production web server for Heroku
+gunicorn>=20.1.0
+
+# PostgreSQL adapter for production database
+psycopg2-binary>=2.9.0

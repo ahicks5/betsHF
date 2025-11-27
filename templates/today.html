@@ -91,8 +91,13 @@
                 </td>
                 <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
                 <td>{{ play.stat_type }}</td>
-                <td><strong>{{ play.line_value|format_float }}</strong></td>
-                <td>{{ play.expected_value|format_float }}</td>
+                <td><strong>{{ play.line_value|format_line }}</strong></td>
+                <td>
+                    {{ play.expected_value|format_float }}
+                    {% if play.games_played %}
+                        <br><small style="color: var(--text-dim);">({{ play.games_played }} GP)</small>
+                    {% endif %}
+                </td>
                 <td>
                     {% if play.recommendation == 'OVER' %}
                         <span class="badge badge-over">OVER</span>

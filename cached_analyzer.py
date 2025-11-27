@@ -26,7 +26,9 @@ class CachedPropAnalyzer:
 
             # Calculate standard deviations for each stat
             std_devs = {}
+            games_played = 0
             if not game_log.empty:
+                games_played = len(game_log)
                 for stat in ['PTS', 'REB', 'AST', 'FG3M']:
                     if stat in game_log.columns:
                         std_devs[stat] = game_log[stat].std()
@@ -34,7 +36,8 @@ class CachedPropAnalyzer:
             self.player_cache[player_id] = {
                 'season': season_stats,
                 'recent': recent_stats,
-                'std_devs': std_devs
+                'std_devs': std_devs,
+                'games_played': games_played
             }
 
         return self.player_cache[player_id]
@@ -64,6 +67,7 @@ class CachedPropAnalyzer:
         season_avg = player_stats['season'].get(stat_type, 0)
         recent_avg = player_stats['recent'].get(stat_type, 0)
         std_dev = player_stats['std_devs'].get(stat_type, 0)
+        games_played = player_stats.get('games_played', 0)
 
         # Weighted average: 50% season, 50% recent (L5)
         # This balances long-term performance with recent form
@@ -72,7 +76,8 @@ class CachedPropAnalyzer:
         components = {
             'season_avg': season_avg,
             'recent_avg': recent_avg,
-            'std_dev': std_dev
+            'std_dev': std_dev,
+            'games_played': games_played
         }
 
         return expected, std_dev, components
@@ -117,6 +122,22 @@ class CachedPropAnalyzer:
             recommendation = "UNDER" if deviation < 0 else "OVER"
             confidence = "High"
 
+        # Apply sample size penalty for players with limited games
+        games_played = components.get('games_played', 0)
+
+        if games_played > 0 and confidence != "N/A":
+            if games_played < 3:
+                # Very limited sample - downgrade significantly
+                if confidence == "High":
+                    confidence = "Medium"
+                elif confidence == "Medium":
+                    recommendation = "NO PLAY"
+                    confidence = "N/A"
+            elif games_played < 5:
+                # Limited sample - downgrade High confidence only
+                if confidence == "High":
+                    confidence = "Medium"
+
         analysis = {
             'player_name': player_name,
             'stat_type': stat_type,
@@ -128,7 +149,8 @@ class CachedPropAnalyzer:
             'confidence': confidence,
             'season_avg': round(components['season_avg'], 2),
             'recent_avg': round(components['recent_avg'], 2),
-            'std_dev': round(components['std_dev'], 2)
+            'std_dev': round(components['std_dev'], 2),
+            'games_played': games_played
         }
 
         return analysis

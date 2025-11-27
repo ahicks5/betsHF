@@ -90,6 +90,7 @@ class Play(Base):
     std_dev = Column(Float, nullable=True)
     deviation = Column(Float, nullable=True)
     z_score = Column(Float, nullable=True)
+    games_played = Column(Integer, nullable=True)
 
     # Recommendation
     recommendation = Column(String(20), nullable=False)  # OVER, UNDER, NO PLAY

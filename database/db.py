@@ -1,6 +1,6 @@
 """
 Database connection and session management
-Simple SQLite database: props.db
+Supports both SQLite (local) and PostgreSQL (Heroku)
 """
 import sys
 from pathlib import Path
@@ -15,8 +15,20 @@ from database.models import Base
 import os
 
 # Database configuration
-DB_FILE = "props.db"
-DATABASE_URL = f"sqlite:///{DB_FILE}"
+# Use Heroku's DATABASE_URL if available (PostgreSQL), otherwise use SQLite locally
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    # Heroku PostgreSQL
+    # Heroku uses postgres:// but SQLAlchemy needs postgresql://
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    print("[OK] Using PostgreSQL (Heroku)")
+else:
+    # Local SQLite
+    DB_FILE = "props.db"
+    DATABASE_URL = f"sqlite:///{DB_FILE}"
+    print("[OK] Using SQLite (Local)")
 
 # Create engine
 engine = create_engine(DATABASE_URL, echo=False)
