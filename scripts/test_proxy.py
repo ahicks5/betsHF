@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Quick test for NBA API with proxy - skips all the direct connection tests
+Quick test for NBA API with ScraperAPI - skips all the direct connection tests
 Usage: heroku run python scripts/test_proxy.py
 """
 import sys
@@ -12,24 +12,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def main():
     print("=" * 60)
-    print(" NBA API Proxy Test")
+    print(" NBA API ScraperAPI Test")
     print("=" * 60)
 
-    # Check proxy config
-    proxy_url = os.environ.get('PROXY_URL')
+    # Check config
     scraper_api_key = os.environ.get('SCRAPER_API_KEY')
 
-    if proxy_url:
-        if '@' in proxy_url:
-            parts = proxy_url.split('@')
-            print(f"Proxy: ****@{parts[1]}")
-        else:
-            print(f"Proxy: {proxy_url}")
-    elif scraper_api_key:
-        print(f"Proxy: ScraperAPI (key: {scraper_api_key[:8]}...)")
+    if scraper_api_key:
+        print(f"ScraperAPI key: {scraper_api_key[:8]}... (API mode)")
     else:
-        print("ERROR: No proxy configured!")
-        print("Set SCRAPER_API_KEY or PROXY_URL environment variable")
+        print("ERROR: No ScraperAPI key configured!")
+        print("Set SCRAPER_API_KEY environment variable:")
+        print("  heroku config:set SCRAPER_API_KEY=your_key")
         return 1
 
     print()

@@ -6,14 +6,9 @@ Note: The NBA stats API often blocks/throttles cloud provider IPs (Heroku, AWS, 
 This client includes retry logic, custom headers, and proxy support to mitigate these issues.
 
 Proxy Configuration (environment variables):
-    PROXY_URL: Standard HTTP/HTTPS proxy URL
-               Examples:
-               - http://user:pass@proxy.example.com:8080
-               - http://scraperapi:YOUR_API_KEY@proxy-server.scraperapi.com:8001
-
-    Or use service-specific variables:
     SCRAPER_API_KEY: Your ScraperAPI key (free tier: 1000 requests/month)
                      Sign up at: https://www.scraperapi.com/
+                     Uses API mode (more reliable than proxy mode)
 """
 from nba_api.stats.endpoints import playergamelog, leaguegamefinder, commonteamroster, playercareerstats
 from nba_api.stats.static import players, teams
@@ -22,6 +17,7 @@ from datetime import datetime
 import time
 import random
 import os
+import requests
 
 
 # Custom headers to mimic browser requests - NBA API blocks many cloud provider IPs
@@ -41,34 +37,13 @@ CUSTOM_HEADERS = {
     'Sec-Fetch-Site': 'same-origin',
 }
 
-# Increased timeout for cloud environments (default is 30s which often fails)
-# With proxies, we need even more time
+# Increased timeout for cloud environments
 REQUEST_TIMEOUT = 120
 
 
-def get_proxy_url():
-    """
-    Get proxy URL from environment variables.
-
-    Checks for:
-    1. PROXY_URL - Direct proxy URL
-    2. SCRAPER_API_KEY - ScraperAPI key (constructs proxy URL)
-
-    Returns:
-        str or None: Proxy URL if configured, None otherwise
-    """
-    # Check for direct proxy URL first
-    proxy_url = os.environ.get('PROXY_URL')
-    if proxy_url:
-        return proxy_url
-
-    # Check for ScraperAPI key
-    scraper_api_key = os.environ.get('SCRAPER_API_KEY')
-    if scraper_api_key:
-        # ScraperAPI proxy format
-        return f"http://scraperapi:{scraper_api_key}@proxy-server.scraperapi.com:8001"
-
-    return None
+def get_scraper_api_key():
+    """Get ScraperAPI key from environment"""
+    return os.environ.get('SCRAPER_API_KEY')
 
 
 class NBAApiClient:
@@ -78,17 +53,10 @@ class NBAApiClient:
         self.current_season = "2025-26"
         self.max_retries = max_retries
         self.base_delay = base_delay
-        self.proxy_url = get_proxy_url()
+        self.scraper_api_key = get_scraper_api_key()
 
-        if self.proxy_url:
-            # Mask the API key in logs
-            masked_proxy = self.proxy_url
-            if '@' in masked_proxy:
-                parts = masked_proxy.split('@')
-                auth_parts = parts[0].split(':')
-                if len(auth_parts) >= 3:
-                    masked_proxy = f"{auth_parts[0]}:{auth_parts[1]}:****@{parts[1]}"
-            print(f"NBA API Client initialized with proxy: {masked_proxy}")
+        if self.scraper_api_key:
+            print(f"NBA API Client initialized with ScraperAPI (key: {self.scraper_api_key[:8]}...)")
         else:
             print("NBA API Client initialized (no proxy configured)")
 
@@ -147,6 +115,62 @@ class NBAApiClient:
         """Find a player by name"""
         return players.find_players_by_full_name(player_name)
 
+    def _fetch_via_scraper_api(self, nba_url: str):
+        """
+        Fetch NBA stats URL via ScraperAPI (API mode, not proxy mode).
+        This avoids SSL certificate issues that occur with proxy mode.
+
+        Args:
+            nba_url: The stats.nba.com URL to fetch
+
+        Returns:
+            dict: JSON response from NBA API
+        """
+        import urllib.parse
+
+        # ScraperAPI endpoint with our target URL
+        api_url = f"http://api.scraperapi.com"
+        params = {
+            'api_key': self.scraper_api_key,
+            'url': nba_url,
+            'keep_headers': 'true',  # Pass through our custom headers
+        }
+
+        # Make request with custom headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'x-nba-stats-origin': 'stats',
+            'x-nba-stats-token': 'true',
+            'Referer': 'https://stats.nba.com/',
+            'Origin': 'https://stats.nba.com',
+        }
+
+        response = requests.get(api_url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
+        return response.json()
+
+    def _parse_nba_response_to_df(self, data: dict, result_set_index: int = 0) -> pd.DataFrame:
+        """
+        Parse NBA API JSON response into a DataFrame.
+
+        Args:
+            data: JSON response from NBA API
+            result_set_index: Which result set to use (usually 0)
+
+        Returns:
+            pd.DataFrame with the data
+        """
+        if 'resultSets' not in data or not data['resultSets']:
+            return pd.DataFrame()
+
+        result_set = data['resultSets'][result_set_index]
+        headers = result_set.get('headers', [])
+        rows = result_set.get('rowSet', [])
+
+        return pd.DataFrame(rows, columns=headers)
+
     def get_player_game_log(self, player_id: int, season: str = None):
         """
         Get game-by-game stats for a player
@@ -156,20 +180,26 @@ class NBAApiClient:
             season = self.current_season
 
         def make_request():
-            # Build request kwargs
-            kwargs = {
-                'player_id': player_id,
-                'season': season,
-                'headers': CUSTOM_HEADERS,
-                'timeout': REQUEST_TIMEOUT
-            }
-
-            # Add proxy if configured
-            if self.proxy_url:
-                kwargs['proxy'] = self.proxy_url
-
-            gamelog = playergamelog.PlayerGameLog(**kwargs)
-            return gamelog.get_data_frames()[0]
+            # If ScraperAPI is configured, use API mode (more reliable)
+            if self.scraper_api_key:
+                nba_url = (
+                    f"https://stats.nba.com/stats/playergamelog"
+                    f"?PlayerID={player_id}"
+                    f"&Season={season}"
+                    f"&SeasonType=Regular+Season"
+                    f"&LeagueID=00"
+                )
+                data = self._fetch_via_scraper_api(nba_url)
+                return self._parse_nba_response_to_df(data)
+            else:
+                # Direct request (works locally, may fail on cloud)
+                gamelog = playergamelog.PlayerGameLog(
+                    player_id=player_id,
+                    season=season,
+                    headers=CUSTOM_HEADERS,
+                    timeout=REQUEST_TIMEOUT
+                )
+                return gamelog.get_data_frames()[0]
 
         try:
             df = self._request_with_retry(
