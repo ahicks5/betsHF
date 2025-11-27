@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/migrate_add_games_played.py:*)",
+      "Bash(python scripts/find_plays.py:*)",
+      "Bash(python scripts/cleanup_old_plays.py:*)",
+      "Bash(cat:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
