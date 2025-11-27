@@ -40,7 +40,8 @@ SessionLocal = scoped_session(sessionmaker(bind=engine))
 def init_db():
     """Initialize the database, creating all tables"""
     Base.metadata.create_all(engine)
-    print(f"[OK] Database initialized: {DB_FILE}")
+    db_type = "PostgreSQL" if os.getenv('DATABASE_URL') else "SQLite"
+    print(f"[OK] Database initialized ({db_type})")
 
 
 def get_session():
