@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}PropEdge - NBA Props Analytics{% endblock %}</title>
+    <title>{% block title %}Take Free Points - NBA Props Analytics{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -568,16 +568,8 @@
 <body>
     <header>
         <div class="container">
-            <!-- BRANDING OPTIONS - Uncomment your preferred option -->
-
-            <!-- Option 1: PropEdge - Algorithm & Analytics Focus -->
-            <h1>PropEdge</h1>
-
-            <!-- Option 2: LineShift - Market Movement & Money Focus -->
-            <!-- <h1>LineShift</h1> -->
-
-            <!-- Original -->
-            <!-- <h1>NBA Props Analyzer</h1> -->
+            <h1>Take Free Points</h1>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: var(--text-dim); font-style: italic; font-weight: 400;">"Always take the free points."</p>
 
             <nav>
                 <a href="/" {% if request.path == '/' or request.path.startswith('/plays/today') or request.path.startswith('/plays/upcoming') %}class="active"{% endif %}>Upcoming</a>
