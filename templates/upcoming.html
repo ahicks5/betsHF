@@ -164,31 +164,27 @@
                 {% set game_local = game.game_date|to_local %}
                 <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
                     <td>
-                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">{{ matchup }}</div>
-                        <small style="color: var(--text-dim);">{{ game_local.strftime('%b %d, %I:%M %p') }}</small>
+                        <div style="font-weight: 600; color: var(--text-primary);">{{ matchup }}</div>
                     </td>
                     <td>
                         <a href="/plays/{{ play.id }}" class="play-link" style="font-weight: 600;">{{ play.player_name }}</a>
                     </td>
-                    <td>
-                        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                {% if play.recommendation == 'OVER' %}
-                                    <span class="badge badge-over" style="display: inline-block; padding: 0.35rem 0.6rem; font-weight: 700;">O {{ play.line_value|format_line }}</span>
-                                {% elif play.recommendation == 'UNDER' %}
-                                    <span class="badge badge-under" style="display: inline-block; padding: 0.35rem 0.6rem; font-weight: 700;">U {{ play.line_value|format_line }}</span>
-                                {% else %}
-                                    <span class="badge badge-no-play" style="display: inline-block;">NO PLAY</span>
-                                {% endif %}
-                                <span style="color: var(--text-primary); font-weight: 600; font-size: 0.95rem;">{{ play.stat_type|upper }}</span>
-                            </div>
+                    <td style="white-space: nowrap;">
+                        <div style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                            {% if play.recommendation == 'OVER' %}
+                                <span class="badge badge-over" style="padding: 0.35rem 0.6rem; font-weight: 700;">O {{ play.line_value|format_line }}</span>
+                            {% elif play.recommendation == 'UNDER' %}
+                                <span class="badge badge-under" style="padding: 0.35rem 0.6rem; font-weight: 700;">U {{ play.line_value|format_line }}</span>
+                            {% else %}
+                                <span class="badge badge-no-play">NO PLAY</span>
+                            {% endif %}
+                            <span style="color: var(--text-primary); font-weight: 600; font-size: 0.95rem;">{{ play.stat_type|upper }}</span>
                         </div>
                     </td>
                     <td>
-                        <div style="display: flex; align-items: baseline; gap: 0.5rem; font-family: 'JetBrains Mono', monospace;">
-                            <span style="font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 3px; font-weight: 700; {% if play.confidence == 'High' %}background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3);{% else %}background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3);{% endif %}">{{ play.confidence[0] }}</span>
-                            <span style="color: var(--text-secondary);">{{ play.z_score|z_to_confidence }}</span>
-                        </div>
+                        <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 0.95rem; {% if play.confidence == 'High' %}color: var(--danger);{% else %}color: var(--warning);{% endif %}">
+                            {{ play.z_score|z_to_confidence }}
+                        </span>
                     </td>
                 </tr>
                 {% endfor %}
