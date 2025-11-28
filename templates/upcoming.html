@@ -171,24 +171,17 @@
                         <a href="/plays/{{ play.id }}" class="play-link" style="font-weight: 600;">{{ play.player_name }}</a>
                     </td>
                     <td>
-                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                            {% if play.recommendation == 'OVER' %}
-                                <span class="badge badge-over" style="display: inline-block;">OVER {{ play.line_value|format_line }}</span>
-                            {% elif play.recommendation == 'UNDER' %}
-                                <span class="badge badge-under" style="display: inline-block;">UNDER {{ play.line_value|format_line }}</span>
-                            {% else %}
-                                <span class="badge badge-no-play" style="display: inline-block;">NO PLAY</span>
-                            {% endif %}
-                            <small style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace;">
-                                {{ play.stat_type }} •
+                        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 {% if play.recommendation == 'OVER' %}
-                                    {{ play.over_odds|format_odds }}
+                                    <span class="badge badge-over" style="display: inline-block; padding: 0.35rem 0.6rem; font-weight: 700;">O {{ play.line_value|format_line }}</span>
                                 {% elif play.recommendation == 'UNDER' %}
-                                    {{ play.under_odds|format_odds }}
+                                    <span class="badge badge-under" style="display: inline-block; padding: 0.35rem 0.6rem; font-weight: 700;">U {{ play.line_value|format_line }}</span>
                                 {% else %}
-                                    -
+                                    <span class="badge badge-no-play" style="display: inline-block;">NO PLAY</span>
                                 {% endif %}
-                            </small>
+                                <span style="color: var(--text-primary); font-weight: 600; font-size: 0.95rem;">{{ play.stat_type|upper }}</span>
+                            </div>
                         </div>
                     </td>
                     <td>
