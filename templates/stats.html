@@ -156,42 +156,62 @@
 </div>
 
 <!-- Z-SCORE EFFECTIVENESS -->
-<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Z-Score Effectiveness</h2>
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Signal Strength Performance</h2>
 <div class="card">
-    <h3>Win Rate by Z-Score Range</h3>
-    <p style="margin-top: 0.5rem; color: var(--text-dim);">Does higher confidence (z-score) actually predict better outcomes?</p>
+    <h3>Profitability by Z-Score Range</h3>
+    <p style="margin-top: 0.5rem; color: var(--text-dim);">Does higher confidence signal translate to better profits?</p>
     <table style="margin-top: 1.5rem;">
         <thead>
             <tr>
-                <th>Z-Score Range</th>
+                <th>Signal Strength</th>
                 <th>Plays</th>
                 <th>Record</th>
-                <th>Win Rate</th>
-                <th>Assessment</th>
+                <th>Win %</th>
+                <th>Profit</th>
+                <th>ROI</th>
+                <th>Performance</th>
             </tr>
         </thead>
         <tbody>
             {% for range in ['1.5+', '1.0-1.5', '0.75-1.0', '0.5-0.75'] %}
+            {% set range_profit = profit_by_z_score_range.get(range, 0) if profit_by_z_score_range else 0 %}
+            {% set range_roi = ((range_profit / (z_score_performance[range].total * bet_amount)) * 100) if z_score_performance[range].total > 0 else 0 %}
             <tr>
-                <td><strong>{{ range }}</strong> {% if range == '1.5+' %}(Highest){% elif range == '0.5-0.75' %}(Lowest){% endif %}</td>
+                <td>
+                    <strong>{{ range }}σ</strong>
+                    {% if range == '1.5+' %}
+                        <br><small style="color: var(--text-dim);">Strongest</small>
+                    {% elif range == '0.5-0.75' %}
+                        <br><small style="color: var(--text-dim);">Weakest</small>
+                    {% endif %}
+                </td>
                 <td>{{ z_score_performance[range].total }}</td>
                 <td>{{ z_score_performance[range].wins }}-{{ z_score_performance[range].total - z_score_performance[range].wins }}</td>
-                <td><strong style="color: {% if z_score_performance[range].win_rate >= 55 %}var(--success){% elif z_score_performance[range].win_rate >= 50 %}var(--warning){% else %}var(--danger){% endif %};">{{ z_score_performance[range].win_rate|format_float(1) }}%</strong></td>
+                <td><strong>{{ z_score_performance[range].win_rate|format_float(1) }}%</strong></td>
+                <td style="font-weight: 700; font-family: 'JetBrains Mono', monospace; {% if range_profit > 0 %}color: var(--success);{% elif range_profit < 0 %}color: var(--danger);{% endif %}">
+                    {% if range_profit > 0 %}+{% endif %}${{ range_profit|format_float(2) }}
+                </td>
+                <td style="{% if range_roi > 0 %}color: var(--success);{% elif range_roi < 0 %}color: var(--danger);{% endif %}">
+                    {{ range_roi|format_float(1) }}%
+                </td>
                 <td>
-                    {% if z_score_performance[range].win_rate >= 60 %}
-                        <span class="badge badge-high">🔥 Excellent</span>
-                    {% elif z_score_performance[range].win_rate >= 55 %}
-                        <span class="badge badge-medium">Strong</span>
-                    {% elif z_score_performance[range].win_rate >= 50 %}
-                        <span class="badge" style="background: var(--warning);">OK</span>
+                    {% if range_profit > 20 %}
+                        <span class="badge" style="background: linear-gradient(135deg, var(--success), #059669); color: white;">💰 Profitable</span>
+                    {% elif range_profit > 0 %}
+                        <span class="badge" style="background: var(--success); color: white;">✓ Positive</span>
+                    {% elif range_profit == 0 %}
+                        <span class="badge" style="background: var(--text-dim); color: white;">→ Break Even</span>
                     {% else %}
-                        <span class="badge" style="background: var(--danger);">Weak</span>
+                        <span class="badge" style="background: var(--text-secondary); color: white;">↓ Negative</span>
                     {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    <p style="margin-top: 1rem; font-size: 0.9rem; color: var(--text-dim);">
+        <strong>Note:</strong> Profitability matters more than win rate. A 48% win rate with favorable odds can be more profitable than a 52% win rate with poor odds.
+    </p>
 </div>
 
 <!-- TOP & WORST PLAYERS -->
@@ -454,16 +474,203 @@ new Chart(ctx, {
 </div>
 {% endif %}
 
+<!-- RISK METRICS (Hedge Fund Style) -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Risk & Performance Metrics</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="stat-box" style="border-left: 3px solid var(--accent-purple);">
+        <p style="color: var(--text-dim); font-size: 0.75rem;">CURRENT STREAK</p>
+        <h3 style="font-size: 2rem; margin: 0.5rem 0;">
+            {% if current_streak > 0 %}
+                {{ current_streak }}W
+            {% elif current_streak < 0 %}
+                {{ current_streak|abs }}L
+            {% else %}
+                -
+            {% endif %}
+        </h3>
+        <small style="color: {% if current_streak > 0 %}var(--success){% elif current_streak < 0 %}var(--danger){% else %}var(--text-dim){% endif %};">
+            {% if current_streak > 0 %}🔥 On Fire{% elif current_streak < 0 %}📉 Cold Streak{% else %}Fresh Start{% endif %}
+        </small>
+    </div>
+
+    <div class="stat-box" style="border-left: 3px solid var(--success);">
+        <p style="color: var(--text-dim); font-size: 0.75rem;">LONGEST WIN STREAK</p>
+        <h3 style="font-size: 2rem; margin: 0.5rem 0; color: var(--success);">{{ longest_win_streak }}</h3>
+        <small style="color: var(--text-dim);">consecutive wins</small>
+    </div>
+
+    <div class="stat-box" style="border-left: 3px solid var(--danger);">
+        <p style="color: var(--text-dim); font-size: 0.75rem;">MAX DRAWDOWN</p>
+        <h3 style="font-size: 2rem; margin: 0.5rem 0; color: var(--danger);">
+            {% if max_drawdown %}
+                ${{ max_drawdown|format_float(2) }}
+            {% else %}
+                $0.00
+            {% endif %}
+        </h3>
+        <small style="color: var(--text-dim);">biggest bankroll dip</small>
+    </div>
+
+    <div class="stat-box" style="border-left: 3px solid var(--warning);">
+        <p style="color: var(--text-dim); font-size: 0.75rem;">AVG WIN vs AVG LOSS</p>
+        <h3 style="font-size: 1.5rem; margin: 0.5rem 0;">
+            <span style="color: var(--success);">${{ avg_win_amount|format_float(2) }}</span>
+            <span style="color: var(--text-dim);"> / </span>
+            <span style="color: var(--danger);">${{ avg_loss_amount|format_float(2) }}</span>
+        </h3>
+        <small style="color: var(--text-dim);">per bet (units)</small>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Risk Profile</h3>
+    <p style="color: var(--text-dim); margin-top: 0.5rem;">Portfolio-style risk assessment for betting performance</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+        <div>
+            <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">WIN/LOSS RATIO</div>
+            <div style="font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">
+                {% if avg_loss_amount != 0 and avg_win_amount and avg_loss_amount %}
+                    {{ (avg_win_amount / avg_loss_amount)|format_float(2) }}:1
+                {% else %}
+                    -
+                {% endif %}
+            </div>
+            <small style="color: var(--text-dim);">
+                {% set ratio = (avg_win_amount / avg_loss_amount) if avg_loss_amount != 0 and avg_win_amount and avg_loss_amount else 0 %}
+                {% if ratio > 2 %}Excellent{% elif ratio > 1.5 %}Good{% elif ratio > 1 %}Fair{% else %}Poor{% endif %}
+            </small>
+        </div>
+
+        <div>
+            <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">PROFIT FACTOR</div>
+            <div style="font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">
+                {% if total_losses != 0 and total_winnings and total_losses %}
+                    {{ (total_winnings / total_losses)|format_float(2) }}
+                {% else %}
+                    -
+                {% endif %}
+            </div>
+            <small style="color: var(--text-dim);">gross wins / gross losses</small>
+        </div>
+
+        <div>
+            <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">CONSISTENCY</div>
+            <div style="font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">
+                {{ ((wins / total_graded * 100) if total_graded > 0 else 0)|format_float(0) }}%
+            </div>
+            <small style="color: var(--text-dim);">based on win rate stability</small>
+        </div>
+
+        <div>
+            <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">RISK LEVEL</div>
+            <div style="font-size: 1.8rem; font-weight: 700;">
+                {% if max_drawdown and max_drawdown < 50 %}
+                    <span style="color: var(--success);">Low</span>
+                {% elif max_drawdown and max_drawdown < 150 %}
+                    <span style="color: var(--warning);">Moderate</span>
+                {% else %}
+                    <span style="color: var(--danger);">High</span>
+                {% endif %}
+            </div>
+            <small style="color: var(--text-dim);">based on drawdown</small>
+        </div>
+    </div>
+</div>
+
 <!-- ABOUT SECTION -->
 <div class="card" style="margin-top: 2.5rem;">
     <h3>About This Dashboard</h3>
-    <p style="margin-bottom: 1rem;">This comprehensive analytics dashboard tracks all aspects of betting performance to help identify what works and what doesn't.</p>
+    <p style="margin-bottom: 1rem;">Hedge fund-style analytics tracking betting performance across multiple dimensions.</p>
     <ul style="margin-left: 2rem; line-height: 2;">
-        <li><strong>Win Rate:</strong> Percentage of bets that won vs total graded bets</li>
         <li><strong>ROI:</strong> Return on investment - total profit as % of total amount wagered</li>
+        <li><strong>Max Drawdown:</strong> Largest peak-to-trough decline in bankroll</li>
+        <li><strong>Win/Loss Ratio:</strong> Average winning bet amount vs average losing bet amount</li>
+        <li><strong>Profit Factor:</strong> Gross profits divided by gross losses (>1 = profitable)</li>
         <li><strong>Z-Score:</strong> Statistical measure of how far the Vegas line deviates from expected value</li>
-        <li><strong>Cumulative Profit:</strong> Running total showing bankroll growth over time</li>
     </ul>
 </div>
+
+<style>
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        /* Stack grids on mobile */
+        .stat-grid,
+        div[style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+        }
+
+        /* Make tables scrollable on mobile */
+        table {
+            display: block;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Smaller font sizes on mobile */
+        h1 {
+            font-size: 1.8rem !important;
+        }
+
+        h2 {
+            font-size: 1.5rem !important;
+        }
+
+        h3 {
+            font-size: 1.2rem !important;
+        }
+
+        /* Reduce padding in stat boxes */
+        .stat-box {
+            padding: 1rem !important;
+        }
+
+        .stat-box h3 {
+            font-size: 1.8rem !important;
+        }
+
+        /* Make cards more compact */
+        .card {
+            padding: 1rem !important;
+        }
+
+        /* Stack page header on mobile */
+        div[style*="display: flex; align-items: center"] {
+            flex-wrap: wrap;
+        }
+
+        /* Reduce chart height on mobile */
+        #profitChart {
+            height: 200px !important;
+        }
+
+        div[style*="height: 300px"] {
+            height: 200px !important;
+        }
+    }
+
+    /* Very small screens */
+    @media (max-width: 480px) {
+        /* Even smaller fonts */
+        body {
+            font-size: 14px;
+        }
+
+        /* Compact stat boxes */
+        .stat-box h3 {
+            font-size: 1.5rem !important;
+        }
+
+        .stat-box p {
+            font-size: 0.7rem !important;
+        }
+
+        /* Hide some columns in tables on very small screens */
+        table th:nth-child(n+5),
+        table td:nth-child(n+5) {
+            display: none;
+        }
+    }
+</style>
 
 {% endblock %}

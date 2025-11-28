@@ -12,18 +12,20 @@
     </div>
 </div>
 
-<div class="filters">
+<!-- Redesigned Filters -->
+<div class="card" style="padding: 1.2rem; margin-bottom: 1.5rem;">
     <form method="get">
-        <div>
-            <label>Show last:</label>
-            <select name="days" onchange="this.form.submit()">
-                <option value="7" {% if days == 7 %}selected{% endif %}>7 days</option>
-                <option value="14" {% if days == 14 %}selected{% endif %}>14 days</option>
-                <option value="30" {% if days == 30 %}selected{% endif %}>30 days</option>
-                <option value="90" {% if days == 90 %}selected{% endif %}>90 days</option>
-            </select>
+        <div style="display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Timeframe</label>
+                <select name="days" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 130px;">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 Days</option>
+                    <option value="14" {% if days == 14 %}selected{% endif %}>Last 14 Days</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 Days</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 Days</option>
+                </select>
+            </div>
         </div>
-        <button type="submit">Update</button>
     </form>
 </div>
 

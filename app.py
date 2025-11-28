@@ -451,6 +451,7 @@ def stats():
             z_score_ranges['1.5+'].append(play)
 
     z_score_performance = {}
+    profit_by_z_score_range = {}
     for range_name, plays_list in z_score_ranges.items():
         if plays_list:
             range_wins = len([p for p in plays_list if p.was_correct == True])
@@ -459,8 +460,24 @@ def stats():
                 'total': len(plays_list),
                 'wins': range_wins
             }
+
+            # Calculate profit for this z-score range
+            range_profit = 0
+            for play in plays_list:
+                if play.was_correct == True:
+                    odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+                    if odds and odds < 0:
+                        range_profit += bet_amount * (100 / abs(odds))
+                    elif odds and odds > 0:
+                        range_profit += bet_amount * (odds / 100)
+                    else:
+                        range_profit += bet_amount
+                elif play.was_correct == False:
+                    range_profit -= bet_amount
+            profit_by_z_score_range[range_name] = range_profit
         else:
             z_score_performance[range_name] = {'win_rate': 0, 'total': 0, 'wins': 0}
+            profit_by_z_score_range[range_name] = 0
 
     # Cumulative profit over time (for charting)
     plays_by_date = sorted(graded_plays, key=lambda x: x.created_at)
@@ -505,6 +522,76 @@ def stats():
     # Sort by date
     daily_profit_sorted = sorted(daily_profit.items(), key=lambda x: x[0], reverse=True)[:30]  # Last 30 days
 
+    # ===== HEDGE FUND RISK METRICS =====
+
+    # Current streak (W/L streak based on most recent plays)
+    current_streak = 0
+    if plays_by_date:
+        # Start from most recent play
+        for play in reversed(plays_by_date):
+            if current_streak == 0:
+                # First play sets the direction
+                if play.was_correct == True:
+                    current_streak = 1
+                elif play.was_correct == False:
+                    current_streak = -1
+            elif current_streak > 0 and play.was_correct == True:
+                # Continuing win streak
+                current_streak += 1
+            elif current_streak < 0 and play.was_correct == False:
+                # Continuing loss streak
+                current_streak -= 1
+            else:
+                # Streak broken
+                break
+
+    # Longest win streak
+    longest_win_streak = 0
+    current_win_streak = 0
+    for play in plays_by_date:
+        if play.was_correct == True:
+            current_win_streak += 1
+            longest_win_streak = max(longest_win_streak, current_win_streak)
+        else:
+            current_win_streak = 0
+
+    # Max drawdown (biggest peak-to-trough decline)
+    max_drawdown = 0
+    if cumulative_profit_data:
+        peak = cumulative_profit_data[0]['profit']
+        for data_point in cumulative_profit_data:
+            current_profit = data_point['profit']
+            # Update peak if we're at a new high
+            if current_profit > peak:
+                peak = current_profit
+            # Calculate drawdown from peak
+            drawdown = peak - current_profit
+            # Update max drawdown
+            max_drawdown = max(max_drawdown, drawdown)
+
+    # Average win amount and average loss amount
+    win_amounts = []
+    loss_amounts = []
+    for play in graded_plays:
+        if play.was_correct == True:
+            odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+            if odds and odds < 0:
+                win_amount = bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                win_amount = bet_amount * (odds / 100)
+            else:
+                win_amount = bet_amount
+            win_amounts.append(win_amount)
+        elif play.was_correct == False:
+            loss_amounts.append(bet_amount)
+
+    avg_win_amount = sum(win_amounts) / len(win_amounts) if win_amounts else 0
+    avg_loss_amount = sum(loss_amounts) / len(loss_amounts) if loss_amounts else 0
+
+    # Total winnings and total losses (for profit factor)
+    total_winnings = sum(win_amounts)
+    total_losses = sum(loss_amounts)
+
     return render_template('stats.html',
                          total_plays=total_plays,
                          high_confidence=high_confidence,
@@ -539,8 +626,17 @@ def stats():
                          worst_players=worst_players,
                          bookmaker_stats=bookmaker_stats,
                          z_score_performance=z_score_performance,
+                         profit_by_z_score_range=profit_by_z_score_range,
                          cumulative_profit_data=cumulative_profit_data,
-                         daily_profit=daily_profit_sorted)
+                         daily_profit=daily_profit_sorted,
+                         # Hedge fund risk metrics
+                         current_streak=current_streak,
+                         longest_win_streak=longest_win_streak,
+                         max_drawdown=max_drawdown,
+                         avg_win_amount=avg_win_amount,
+                         avg_loss_amount=avg_loss_amount,
+                         total_winnings=total_winnings,
+                         total_losses=total_losses)
 
 
 def get_game_status(game, now=None):
