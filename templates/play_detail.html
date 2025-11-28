@@ -3,153 +3,181 @@
 {% block title %}{{ play.player_name }} {{ play.stat_type }} - PropEdge{% endblock %}
 
 {% block content %}
-<a href="/" style="color: #3498db; text-decoration: none; margin-bottom: 1rem; display: inline-block;">&larr; Back to Today's Plays</a>
+<a href="/" style="color: var(--accent-blue); text-decoration: none; margin-bottom: 1.5rem; display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 500; transition: gap 0.2s ease;">
+    <span style="font-size: 1.2rem;">←</span> Back to Plays
+</a>
 
-<div class="card">
-    <h2>{{ play.player_name }} - {{ play.stat_type }}</h2>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+<!-- Hero Section -->
+<div class="card" style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%); border: 2px solid var(--border); margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 1.5rem;">
         <div>
-            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">RECOMMENDATION</h3>
-            <p style="font-size: 1.5rem; font-weight: bold;">
+            <h1 style="font-size: clamp(1.8rem, 5vw, 2.5rem); margin-bottom: 0.5rem; color: var(--text-primary);">{{ play.player_name }}</h1>
+            <p style="font-size: 1.1rem; color: var(--text-secondary); margin: 0;">{{ play.stat_type|upper }}</p>
+        </div>
+        <div style="text-align: right;">
+            {% if play.recommendation == 'OVER' %}
+                <div class="badge badge-over" style="font-size: 1.8rem; padding: 1rem 2rem; margin-bottom: 0.5rem; display: inline-block;">OVER {{ play.line_value|format_float }}</div>
+            {% elif play.recommendation == 'UNDER' %}
+                <div class="badge badge-under" style="font-size: 1.8rem; padding: 1rem 2rem; margin-bottom: 0.5rem; display: inline-block;">UNDER {{ play.line_value|format_float }}</div>
+            {% else %}
+                <div class="badge badge-no-play" style="font-size: 1.8rem; padding: 1rem 2rem; margin-bottom: 0.5rem; display: inline-block;">NO PLAY</div>
+            {% endif %}
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 0.5rem;">
+                <span class="badge {% if play.confidence == 'High' %}badge-high{% else %}badge-medium{% endif %}" style="font-size: 0.9rem;">{{ play.confidence }} Confidence</span>
                 {% if play.recommendation == 'OVER' %}
-                    <span class="badge badge-over" style="font-size: 1.2rem; padding: 0.5rem 1rem;">OVER {{ play.line_value|format_float }}</span>
+                    <span style="color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;">{{ play.over_odds|format_odds }}</span>
                 {% elif play.recommendation == 'UNDER' %}
-                    <span class="badge badge-under" style="font-size: 1.2rem; padding: 0.5rem 1rem;">UNDER {{ play.line_value|format_float }}</span>
-                {% else %}
-                    <span class="badge badge-no-play" style="font-size: 1.2rem; padding: 0.5rem 1rem;">NO PLAY</span>
+                    <span style="color: var(--text-secondary); font-family: 'JetBrains Mono', monospace;">{{ play.under_odds|format_odds }}</span>
                 {% endif %}
-            </p>
-        </div>
-
-        <div>
-            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">CONFIDENCE</h3>
-            <p style="font-size: 1.5rem; font-weight: bold;">
-                {% if play.confidence == 'High' %}
-                    <span class="badge badge-high" style="font-size: 1.2rem; padding: 0.5rem 1rem;">High</span>
-                {% elif play.confidence == 'Medium' %}
-                    <span class="badge badge-medium" style="font-size: 1.2rem; padding: 0.5rem 1rem;">Medium</span>
-                {% else %}
-                    {{ play.confidence or 'N/A' }}
-                {% endif %}
-            </p>
-        </div>
-
-        <div>
-            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">ODDS</h3>
-            <p style="font-size: 1.5rem; font-weight: bold;">
-                {% if play.recommendation == 'OVER' %}
-                    {{ play.over_odds|format_odds }}
-                {% elif play.recommendation == 'UNDER' %}
-                    {{ play.under_odds|format_odds }}
-                {% else %}
-                    -
-                {% endif %}
-            </p>
-        </div>
-
-        <div>
-            <h3 style="color: #7f8c8d; font-size: 0.9rem; margin-bottom: 0.5rem;">BOOKMAKER</h3>
-            <p style="font-size: 1.5rem; font-weight: bold;">{{ play.bookmaker or 'N/A' }}</p>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="card">
-    <h3>Analysis Details</h3>
+<!-- Quick Stats Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="stat-box">
+        <p style="color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem;">Vegas Line</p>
+        <h3 style="font-size: 2rem; margin: 0;">{{ play.line_value|format_float }}</h3>
+    </div>
 
-    <table style="margin-top: 1rem;">
-        <tr>
-            <th>Metric</th>
-            <th>Value</th>
-        </tr>
-        <tr>
-            <td>Vegas Line</td>
-            <td><strong>{{ play.line_value|format_float }}</strong></td>
-        </tr>
-        <tr>
-            <td>Player Season Average</td>
-            <td>{{ play.season_avg|format_float }}</td>
-        </tr>
-        <tr>
-            <td>Player Last 5 Games Avg</td>
-            <td>{{ play.last5_avg|format_float }}</td>
-        </tr>
-        <tr>
-            <td><strong>Player Historical Avg</strong></td>
-            <td><strong>{{ play.expected_value|format_float }}</strong></td>
-        </tr>
-        <tr>
-            <td>Player Consistency (Std Dev)</td>
-            <td>{{ play.std_dev|format_float }}</td>
-        </tr>
-        <tr>
-            <td><strong>Vegas Deviation</strong></td>
-            <td><strong>{{ play.deviation|format_float }}</strong></td>
-        </tr>
-        <tr>
-            <td><strong>Signal Strength</strong></td>
-            <td><strong>{{ play.z_score|z_to_confidence }}</strong> (z-score: {{ play.z_score|format_float }})</td>
-        </tr>
-    </table>
+    <div class="stat-box">
+        <p style="color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem;">Player Average</p>
+        <h3 style="font-size: 2rem; margin: 0; color: var(--accent-green);">{{ play.expected_value|format_float }}</h3>
+        <small style="color: var(--text-dim);">Season: {{ play.season_avg|format_float }} | L5: {{ play.last5_avg|format_float }}</small>
+    </div>
 
-    <div style="margin-top: 1.5rem; padding: 1rem; background: #ecf0f1; border-radius: 4px;">
-        <h4>How It Works</h4>
-        <p style="margin-top: 0.5rem; font-family: monospace;">
-            Player Avg = (Season {{ play.season_avg|format_float }} × 50%) + (Last 5 {{ play.last5_avg|format_float }} × 50%) = {{ play.expected_value|format_float }}
-        </p>
-        <p style="margin-top: 0.5rem; font-family: monospace;">
-            Vegas Deviation = Vegas Line {{ play.line_value|format_float }} - Player Avg {{ play.expected_value|format_float }} = {{ play.deviation|format_float }}
-        </p>
-        <p style="margin-top: 0.5rem; font-family: monospace;">
-            Signal Strength = {{ play.z_score|z_to_confidence }} (based on player consistency)
-        </p>
+    <div class="stat-box">
+        <p style="color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem;">Deviation</p>
+        <h3 style="font-size: 2rem; margin: 0; color: {% if play.deviation|abs > 2 %}var(--danger){% elif play.deviation|abs > 1 %}var(--warning){% else %}var(--text-secondary){% endif %};">
+            {% if play.deviation > 0 %}+{% endif %}{{ play.deviation|format_float }}
+        </h3>
+        <small style="color: var(--text-dim);">{{ play.z_score|z_to_confidence }} signal</small>
+    </div>
+
+    <div class="stat-box">
+        <p style="color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 0.5rem;">Sample Size</p>
+        <h3 style="font-size: 2rem; margin: 0;">{{ play.games_played or 0 }}</h3>
+        <small style="color: var(--text-dim);">games played</small>
     </div>
 </div>
 
+<!-- Why This Bet -->
 <div class="card">
-    <h3>What This Means</h3>
-    <div style="margin-top: 1rem;">
-        <p><strong>Signal Strength: {{ play.z_score|z_to_confidence }}</strong></p>
+    <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+        <span style="font-size: 1.5rem;">💡</span> Why {{ play.recommendation }}?
+    </h3>
 
-        {% if play.z_score|abs >= 1.5 %}
-            <p style="margin-top: 0.5rem;">🔥 <strong>Very Strong Signal</strong> - Vegas line is unusually different from what this player typically does. When Vegas moves the line this much, they usually know something.</p>
-        {% elif play.z_score|abs >= 1.0 %}
-            <p style="margin-top: 0.5rem;">💪 <strong>Strong Signal</strong> - Vegas line shows significant deviation from player averages. Worth consideration.</p>
-        {% elif play.z_score|abs >= 0.5 %}
-            <p style="margin-top: 0.5rem;">⚡ <strong>Medium Signal</strong> - Vegas line shows moderate deviation. Proceed with caution.</p>
-        {% else %}
-            <p style="margin-top: 0.5rem;">😐 <strong>Weak Signal</strong> - Vegas line is close to player averages. Not a strong play.</p>
-        {% endif %}
-
-        <p style="margin-top: 1rem;"><strong>The Strategy:</strong></p>
+    <div style="background: rgba(0, 255, 136, 0.05); border-left: 3px solid var(--accent-green); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
         {% if play.deviation < 0 %}
-            <p style="margin-top: 0.5rem;">Vegas set the line at <strong>{{ play.line_value|format_float }}</strong>, which is <strong>higher</strong> than the player's typical performance of {{ play.expected_value|format_float }}. When Vegas moves a line UP like this, they're expecting the player to do WORSE than usual. We follow Vegas and bet <strong>UNDER</strong>.</p>
+            <p style="margin: 0; line-height: 1.7; color: var(--text-primary);">
+                <strong>Vegas set the line {{ (play.deviation|abs)|format_float }} points ABOVE</strong> where this player typically performs ({{ play.expected_value|format_float }})
+            </p>
+            <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">
+                → They expect the player to underperform → Bet UNDER
+            </p>
         {% elif play.deviation > 0 %}
-            <p style="margin-top: 0.5rem;">Vegas set the line at <strong>{{ play.line_value|format_float }}</strong>, which is <strong>lower</strong> than the player's typical performance of {{ play.expected_value|format_float }}. When Vegas moves a line DOWN like this, they're expecting the player to do BETTER than usual. We follow Vegas and bet <strong>OVER</strong>.</p>
+            <p style="margin: 0; line-height: 1.7; color: var(--text-primary);">
+                <strong>Vegas set the line {{ play.deviation|format_float }} points BELOW</strong> where this player typically performs ({{ play.expected_value|format_float }})
+            </p>
+            <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary);">
+                → They expect the player to overperform → Bet OVER
+            </p>
         {% endif %}
+    </div>
+
+    <div style="display: grid; gap: 0.75rem; margin-top: 1rem;">
+        <div style="display: flex; align-items: start; gap: 0.75rem;">
+            <span style="color: var(--accent-green); font-size: 1.2rem; min-width: 24px;">✓</span>
+            <div>
+                <strong style="color: var(--text-primary);">Player averages {{ play.expected_value|format_float }}</strong>
+                <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
+                    Weighted 50/50: Season ({{ play.season_avg|format_float }}) + Last 5 games ({{ play.last5_avg|format_float }})
+                </p>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: start; gap: 0.75rem;">
+            <span style="color: var(--accent-blue); font-size: 1.2rem; min-width: 24px;">✓</span>
+            <div>
+                <strong style="color: var(--text-primary);">Vegas line is {{ play.line_value|format_float }}</strong>
+                <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
+                    {% if play.deviation|abs > 2 %}
+                        <span style="color: var(--danger);">Significant</span> {{ (play.deviation|abs)|format_float }}-point gap
+                    {% elif play.deviation|abs > 1 %}
+                        <span style="color: var(--warning);">Moderate</span> {{ (play.deviation|abs)|format_float }}-point gap
+                    {% else %}
+                        Small {{ (play.deviation|abs)|format_float }}-point gap
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: start; gap: 0.75rem;">
+            <span style="color: var(--accent-purple); font-size: 1.2rem; min-width: 24px;">✓</span>
+            <div>
+                <strong style="color: var(--text-primary);">{{ play.confidence }} confidence signal</strong>
+                <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
+                    Based on {{ play.games_played or 0 }} games, std dev {{ play.std_dev|format_float }}
+                </p>
+            </div>
+        </div>
     </div>
 </div>
 
+<!-- Visual Comparison -->
 <div class="card">
-    <h3>Timestamps</h3>
-    <table style="margin-top: 1rem;">
-        <tr>
-            <td>Analysis Created</td>
-            <td>{{ (play.created_at|to_local).strftime('%b %d, %Y at %I:%M %p %Z') }}</td>
-        </tr>
-        {% if prop_line %}
-        <tr>
-            <td>Line Collected</td>
-            <td>{{ (prop_line.collected_at|to_local).strftime('%b %d, %Y at %I:%M %p %Z') }}</td>
-        </tr>
-        {% endif %}
-        {% if game %}
-        <tr>
-            <td>Game Scheduled</td>
-            <td>{{ (game.game_date|to_local).strftime('%b %d, %Y at %I:%M %p %Z') }}</td>
-        </tr>
-        {% endif %}
-    </table>
+    <h3 style="margin-bottom: 1rem;">Visual Breakdown</h3>
+
+    <div style="margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary); font-size: 0.85rem;">Season Average</span>
+            <span style="font-family: 'JetBrains Mono', monospace; color: var(--text-primary); font-weight: 600;">{{ play.season_avg|format_float }}</span>
+        </div>
+        <div style="background: var(--bg-secondary); height: 8px; border-radius: 4px; overflow: hidden;">
+            <div style="background: linear-gradient(90deg, var(--accent-green), var(--accent-blue)); height: 100%; width: {% if play.line_value > 0 %}{{ (play.season_avg / play.line_value * 100)|int }}%{% else %}0%{% endif %}; border-radius: 4px;"></div>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary); font-size: 0.85rem;">Last 5 Games Average</span>
+            <span style="font-family: 'JetBrains Mono', monospace; color: var(--text-primary); font-weight: 600;">{{ play.last5_avg|format_float }}</span>
+        </div>
+        <div style="background: var(--bg-secondary); height: 8px; border-radius: 4px; overflow: hidden;">
+            <div style="background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue)); height: 100%; width: {% if play.line_value > 0 %}{{ (play.last5_avg / play.line_value * 100)|int }}%{% else %}0%{% endif %}; border-radius: 4px;"></div>
+        </div>
+    </div>
+
+    <div style="margin-bottom: 0;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Vegas Line</span>
+            <span style="font-family: 'JetBrains Mono', monospace; color: var(--accent-green); font-weight: 700; font-size: 1.1rem;">{{ play.line_value|format_float }}</span>
+        </div>
+        <div style="background: var(--bg-secondary); height: 12px; border-radius: 6px; overflow: hidden; border: 2px solid var(--accent-green);">
+            <div style="background: var(--accent-green); height: 100%; width: 100%; border-radius: 4px;"></div>
+        </div>
+    </div>
 </div>
+
+<!-- Metadata -->
+<div class="card" style="background: var(--bg-secondary); border: 1px solid var(--border);">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; font-size: 0.9rem;">
+        <div>
+            <span style="color: var(--text-dim);">Bookmaker</span>
+            <p style="margin: 0.25rem 0 0 0; color: var(--text-primary); font-weight: 600;">{{ play.bookmaker or 'N/A' }}</p>
+        </div>
+        {% if game %}
+        <div>
+            <span style="color: var(--text-dim);">Game Time</span>
+            <p style="margin: 0.25rem 0 0 0; color: var(--text-primary); font-weight: 600;">{{ (game.game_date|to_local).strftime('%b %d, %I:%M %p') }}</p>
+        </div>
+        {% endif %}
+        <div>
+            <span style="color: var(--text-dim);">Analysis Created</span>
+            <p style="margin: 0.25rem 0 0 0; color: var(--text-primary); font-weight: 600;">{{ (play.created_at|to_local).strftime('%b %d, %I:%M %p') }}</p>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
