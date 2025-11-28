@@ -111,8 +111,10 @@
                     {% endif %}
                 </td>
                 <td>
-                    <span class="badge {% if play.confidence == 'High' %}badge-high{% else %}badge-medium{% endif %}">{{ play.confidence }}</span>
-                    <br><small style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace;">{{ play.z_score|z_to_confidence }}</small>
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem; font-family: 'JetBrains Mono', monospace;">
+                        <span style="font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 3px; font-weight: 700; {% if play.confidence == 'High' %}background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3);{% else %}background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3);{% endif %}">{{ play.confidence[0] }}</span>
+                        <span style="color: var(--text-secondary);">{{ play.z_score|z_to_confidence }}</span>
+                    </div>
                 </td>
                 <td>
                     {% if play.recommendation == 'OVER' %}
