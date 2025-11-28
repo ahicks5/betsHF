@@ -92,9 +92,20 @@ def grade_ungraded_plays():
             ).first()
 
             if not game_stats:
-                # Stats not available yet
-                not_ready_count += 1
-                continue
+                # Check if player has ANY stats (to differentiate DNP vs not synced)
+                has_any_stats = session.query(PlayerGameStats).filter_by(
+                    player_id=player.id
+                ).count() > 0
+
+                if has_any_stats:
+                    # Player has stats for other games but not this one - likely DNP
+                    print(f"  [DNP] {player.full_name} - {play.stat_type} (player did not play)")
+                    # Don't grade - bet would be voided/pushed by sportsbook
+                    continue
+                else:
+                    # No stats at all - not synced yet
+                    not_ready_count += 1
+                    continue
 
             # Map prop types to stat fields
             stat_map = {
@@ -106,6 +117,7 @@ def grade_ungraded_plays():
                 'ast': 'assists',
                 'threes': 'fg3m',
                 '3ptm': 'fg3m',
+                'fg3m': 'fg3m',  # FIX: Add fg3m mapping
                 'steals': 'steals',
                 'stl': 'steals',
                 'blocks': 'blocks',
