@@ -509,14 +509,20 @@
             }
 
             header h1 {
-                font-size: 1.1rem;
                 margin: 0;
-                font-size: 0;
+                text-indent: -9999px;
+                line-height: 0;
+                width: 50px;
+                overflow: hidden;
+                position: relative;
             }
 
             /* Show "TFP" on mobile instead of full name */
             header h1::before {
                 content: 'TFP';
+                text-indent: 0;
+                display: block;
+                line-height: normal;
                 font-size: 1.1rem;
                 background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-blue) 50%, var(--accent-purple) 100%);
                 -webkit-background-clip: text;
