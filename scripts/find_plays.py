@@ -101,23 +101,33 @@ def save_plays_to_db(session, analyses_with_props):
         prop = item['prop']
 
         try:
+            # Convert numpy types to Python native types for PostgreSQL compatibility
+            def to_python_type(val):
+                """Convert numpy types to Python native types"""
+                if val is None:
+                    return None
+                # Handle numpy types
+                if hasattr(val, 'item'):
+                    return val.item()  # Converts np.float64 -> float, np.int64 -> int
+                return val
+
             play = Play(
                 prop_line_id=prop.id,
                 player_name=analysis['player_name'],
                 stat_type=analysis['stat_type'],
-                line_value=analysis['line_value'],
-                season_avg=analysis['season_avg'],
-                last5_avg=analysis['recent_avg'],
-                expected_value=analysis['expected_value'],
-                std_dev=analysis['std_dev'],
-                deviation=analysis['deviation'],
-                z_score=analysis['z_score'],
-                games_played=analysis.get('games_played', 0),
+                line_value=float(analysis['line_value']) if analysis['line_value'] is not None else None,
+                season_avg=to_python_type(analysis['season_avg']),
+                last5_avg=to_python_type(analysis['recent_avg']),
+                expected_value=to_python_type(analysis['expected_value']),
+                std_dev=to_python_type(analysis['std_dev']),
+                deviation=to_python_type(analysis['deviation']),
+                z_score=to_python_type(analysis['z_score']),
+                games_played=int(analysis.get('games_played', 0)),
                 recommendation=analysis['recommendation'],
                 confidence=analysis['confidence'],
                 bookmaker=analysis['bookmaker'],
-                over_odds=analysis.get('over_odds'),
-                under_odds=analysis.get('under_odds')
+                over_odds=int(analysis.get('over_odds')) if analysis.get('over_odds') is not None else None,
+                under_odds=int(analysis.get('under_odds')) if analysis.get('under_odds') is not None else None
             )
 
             session.add(play)
