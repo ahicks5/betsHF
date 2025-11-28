@@ -9,7 +9,10 @@
       "Bash(python database/db.py:*)",
       "Bash(python scripts/test_caching_system.py:*)",
       "Bash(python:*)",
-      "Bash(heroku config:get:*)"
+      "Bash(heroku config:get:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
