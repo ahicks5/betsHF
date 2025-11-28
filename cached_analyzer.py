@@ -198,6 +198,6 @@ class CachedPropAnalyzer:
     def get_cache_stats(self):
         """Get cache statistics"""
         return {
-            'players_cached': len(self.player_cache),
-            'teams_cached': len(self.team_cache)
+            'players_cached': len(self.player_id_map),
+            'teams_cached': 0  # Team caching not currently implemented
         }

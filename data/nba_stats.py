@@ -70,9 +70,12 @@ def fetch_player_game_log(player_id, season=None, force_refresh=False):
         if cached_stats:
             most_recent = max(cached_stats, key=lambda x: x.fetched_at)
             if most_recent.fetched_at > datetime.utcnow() - timedelta(hours=12):
+                # Filter out marker records (where all stats are None)
+                real_stats = [s for s in cached_stats if s.minutes is not None or s.points is not None]
+
                 log_api_call('nba_api', 'playergamelog', player_id, season, cache_hit=True)
-                print(f"[CACHE HIT] {player.full_name} - {len(cached_stats)} games (last updated {most_recent.fetched_at})")
-                return cached_stats
+                print(f"[CACHE HIT] {player.full_name} - {len(real_stats)} games (last updated {most_recent.fetched_at})")
+                return real_stats
 
     # Fetch from NBA API using existing client (with ScraperAPI support)
     print(f"[NBA API] Fetching game log for {player.full_name} ({season})...")
@@ -85,6 +88,22 @@ def fetch_player_game_log(player_id, season=None, force_refresh=False):
 
         if df.empty:
             print(f"[WARNING] No games found for {player.full_name} in {season}")
+
+            # Cache the "no games" result to avoid repeatedly checking
+            # Create a marker record so we know we checked recently
+            marker = PlayerGameStats(
+                player_id=player_id,
+                season=season,
+                game_date=datetime.utcnow(),  # Use current time as placeholder
+                fetched_at=datetime.utcnow(),
+                minutes=None,  # All stats None to indicate "no games"
+                points=None,
+                rebounds=None,
+                assists=None
+            )
+            session.add(marker)
+            session.commit()
+
             return []
 
         # Store in database
