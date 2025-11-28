@@ -509,21 +509,18 @@
             }
 
             header h1 {
-                margin: 0;
-                text-indent: -9999px;
-                line-height: 0;
-                width: 50px;
-                overflow: hidden;
-                position: relative;
+                margin: 0 !important;
+                font-size: 0 !important;
+                width: auto !important;
+                height: auto !important;
+                overflow: visible !important;
             }
 
             /* Show "TFP" on mobile instead of full name */
             header h1::before {
-                content: 'TFP';
-                text-indent: 0;
-                display: block;
-                line-height: normal;
-                font-size: 1.1rem;
+                content: 'TFP' !important;
+                display: inline-block !important;
+                font-size: 1.1rem !important;
                 background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-blue) 50%, var(--accent-purple) 100%);
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
@@ -532,11 +529,11 @@
             }
 
             header h1::after {
-                display: none;
+                display: none !important;
             }
 
             header p {
-                display: none; /* Hide slogan on mobile to save space */
+                display: none !important; /* Hide slogan on mobile to save space */
             }
 
             nav {
