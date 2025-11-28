@@ -25,16 +25,21 @@ def grade_ungraded_plays():
     print("\n[GRADING] Checking for ungraded plays...")
 
     # Get ungraded plays for completed games
+    # Only check plays from the last 7 days to avoid re-checking old DNP cases
+    from datetime import datetime, timedelta
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+
     ungraded_plays = session.query(Play).filter(
         Play.was_correct == None,
-        Play.recommendation != 'NO PLAY'
+        Play.recommendation != 'NO PLAY',
+        Play.created_at >= seven_days_ago  # Only check recent plays
     ).all()
 
     if not ungraded_plays:
         print("[GRADING] No ungraded plays found")
         return 0
 
-    print(f"[GRADING] Found {len(ungraded_plays)} ungraded plays")
+    print(f"[GRADING] Found {len(ungraded_plays)} ungraded plays (last 7 days)")
 
     graded_count = 0
     not_ready_count = 0
