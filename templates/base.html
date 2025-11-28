@@ -504,13 +504,16 @@
             }
 
             table {
-                font-size: 0.8rem;
+                font-size: 0.85rem;
                 display: block;
                 overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                white-space: nowrap;
             }
 
             th, td {
-                padding: 10px 8px;
+                padding: 12px 10px;
+                white-space: normal;
             }
 
             .card {
@@ -525,6 +528,12 @@
             .filters select,
             .filters button {
                 width: 100%;
+            }
+
+            /* Better mobile badges */
+            .badge {
+                font-size: 0.75rem;
+                padding: 0.3rem 0.7rem;
             }
         }
 

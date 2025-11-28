@@ -3,10 +3,24 @@
 {% block title %}Upcoming Plays - PropEdge{% endblock %}
 
 {% block content %}
-<h2>Upcoming Plays (Today & Tomorrow)</h2>
-<p style="color: #7f8c8d; margin-top: -10px; margin-bottom: 20px;">
-    Showing all upcoming games with available props
-</p>
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+    <div>
+        <h2 style="margin: 0;">Upcoming Plays (Today & Tomorrow)</h2>
+        <p style="color: #7f8c8d; margin: 0.25rem 0 0 0; font-size: 0.9rem;">
+            Showing all upcoming games with available props
+        </p>
+    </div>
+
+    <!-- View Toggle -->
+    <div style="display: flex; gap: 0.5rem; background: var(--bg-card); border-radius: 10px; padding: 0.4rem; border: 1px solid var(--border);">
+        <button onclick="setView('detailed')" id="btn-detailed" style="padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); color: var(--bg-primary);">
+            Detailed
+        </button>
+        <button onclick="setView('condensed')" id="btn-condensed" style="padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; background: transparent; color: var(--text-secondary);">
+            Condensed
+        </button>
+    </div>
+</div>
 
 <div class="filters">
     <form method="get">
@@ -58,77 +72,136 @@
 <div class="card">
     <h3>{{ plays_with_games|length }} Plays Found</h3>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Matchup</th>
-                <th>Game Date/Time</th>
-                <th>Status</th>
-                <th>Player</th>
-                <th>Stat</th>
-                <th>Vegas Line</th>
-                <th>Player Avg</th>
-                <th>Play</th>
-                <th>Strength</th>
-                <th>Odds</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for play, game, matchup in plays_with_games %}
-            {% set status = game|game_status %}
-            {% set game_local = game.game_date|to_local %}
-            <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
-                <td style="white-space: nowrap; font-weight: 600;">{{ matchup }}</td>
-                <td style="white-space: nowrap;">
-                    {{ game_local.strftime('%b %d') }}<br>
-                    <small style="color: #7f8c8d;">{{ game_local.strftime('%I:%M %p') }} ({{ game.game_date|time_until }})</small>
-                </td>
-                <td>
-                    {% if status == 'upcoming' %}
-                        <span class="badge" style="background: #3498db; color: white;">Upcoming</span>
-                    {% elif status == 'live' %}
-                        <span class="badge" style="background: #e74c3c; color: white;">🔴 LIVE</span>
-                    {% else %}
-                        <span class="badge" style="background: #95a5a6; color: white;">Done</span>
-                    {% endif %}
-                </td>
-                <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
-                <td>{{ play.stat_type }}</td>
-                <td><strong>{{ play.line_value|format_line }}</strong></td>
-                <td>
-                    {{ play.expected_value|format_float }}
-                    {% if play.games_played %}
-                        <br><small style="color: var(--text-dim);">({{ play.games_played }} GP)</small>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if play.recommendation == 'OVER' %}
-                        <span class="badge badge-over">OVER</span>
-                    {% elif play.recommendation == 'UNDER' %}
-                        <span class="badge badge-under">UNDER</span>
-                    {% else %}
-                        <span class="badge badge-no-play">NO PLAY</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <div style="display: flex; align-items: baseline; gap: 0.5rem; font-family: 'JetBrains Mono', monospace;">
-                        <span style="font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 3px; font-weight: 700; {% if play.confidence == 'High' %}background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3);{% else %}background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3);{% endif %}">{{ play.confidence[0] }}</span>
-                        <span style="color: var(--text-secondary);">{{ play.z_score|z_to_confidence }}</span>
-                    </div>
-                </td>
-                <td>
-                    {% if play.recommendation == 'OVER' %}
-                        {{ play.over_odds|format_odds }}
-                    {% elif play.recommendation == 'UNDER' %}
-                        {{ play.under_odds|format_odds }}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- DETAILED VIEW -->
+    <div id="detailed-view">
+        <table>
+            <thead>
+                <tr>
+                    <th>Matchup</th>
+                    <th class="hide-mobile">Game Date/Time</th>
+                    <th class="hide-mobile">Status</th>
+                    <th>Player</th>
+                    <th class="hide-mobile">Stat</th>
+                    <th>Vegas Line</th>
+                    <th class="hide-mobile">Player Avg</th>
+                    <th>Play</th>
+                    <th>Strength</th>
+                    <th class="hide-mobile">Odds</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for play, game, matchup in plays_with_games %}
+                {% set status = game|game_status %}
+                {% set game_local = game.game_date|to_local %}
+                <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
+                    <td style="white-space: nowrap; font-weight: 600;">{{ matchup }}</td>
+                    <td class="hide-mobile" style="white-space: nowrap;">
+                        {{ game_local.strftime('%b %d') }}<br>
+                        <small style="color: #7f8c8d;">{{ game_local.strftime('%I:%M %p') }} ({{ game.game_date|time_until }})</small>
+                    </td>
+                    <td class="hide-mobile">
+                        {% if status == 'upcoming' %}
+                            <span class="badge" style="background: #3498db; color: white;">Upcoming</span>
+                        {% elif status == 'live' %}
+                            <span class="badge" style="background: #e74c3c; color: white;">🔴 LIVE</span>
+                        {% else %}
+                            <span class="badge" style="background: #95a5a6; color: white;">Done</span>
+                        {% endif %}
+                    </td>
+                    <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
+                    <td class="hide-mobile">{{ play.stat_type }}</td>
+                    <td><strong>{{ play.line_value|format_line }}</strong></td>
+                    <td class="hide-mobile">
+                        {{ play.expected_value|format_float }}
+                        {% if play.games_played %}
+                            <br><small style="color: var(--text-dim);">({{ play.games_played }} GP)</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if play.recommendation == 'OVER' %}
+                            <span class="badge badge-over">OVER</span>
+                        {% elif play.recommendation == 'UNDER' %}
+                            <span class="badge badge-under">UNDER</span>
+                        {% else %}
+                            <span class="badge badge-no-play">NO PLAY</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: baseline; gap: 0.5rem; font-family: 'JetBrains Mono', monospace;">
+                            <span style="font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 3px; font-weight: 700; {% if play.confidence == 'High' %}background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3);{% else %}background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3);{% endif %}">{{ play.confidence[0] }}</span>
+                            <span style="color: var(--text-secondary);">{{ play.z_score|z_to_confidence }}</span>
+                        </div>
+                    </td>
+                    <td class="hide-mobile">
+                        {% if play.recommendation == 'OVER' %}
+                            {{ play.over_odds|format_odds }}
+                        {% elif play.recommendation == 'UNDER' %}
+                            {{ play.under_odds|format_odds }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- CONDENSED VIEW -->
+    <div id="condensed-view" style="display: none;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Game</th>
+                    <th>Player</th>
+                    <th>Bet</th>
+                    <th>Signal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for play, game, matchup in plays_with_games %}
+                {% set status = game|game_status %}
+                {% set game_local = game.game_date|to_local %}
+                <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">{{ matchup }}</div>
+                        <small style="color: var(--text-dim);">{{ game_local.strftime('%b %d, %I:%M %p') }}</small>
+                    </td>
+                    <td>
+                        <a href="/plays/{{ play.id }}" class="play-link" style="font-weight: 600;">{{ play.player_name }}</a>
+                    </td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            {% if play.recommendation == 'OVER' %}
+                                <span class="badge badge-over" style="display: inline-block;">OVER {{ play.line_value|format_line }}</span>
+                            {% elif play.recommendation == 'UNDER' %}
+                                <span class="badge badge-under" style="display: inline-block;">UNDER {{ play.line_value|format_line }}</span>
+                            {% else %}
+                                <span class="badge badge-no-play" style="display: inline-block;">NO PLAY</span>
+                            {% endif %}
+                            <small style="color: var(--text-dim); font-family: 'JetBrains Mono', monospace;">
+                                {{ play.stat_type }} •
+                                {% if play.recommendation == 'OVER' %}
+                                    {{ play.over_odds|format_odds }}
+                                {% elif play.recommendation == 'UNDER' %}
+                                    {{ play.under_odds|format_odds }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </small>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: baseline; gap: 0.5rem; font-family: 'JetBrains Mono', monospace;">
+                            <span style="font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 3px; font-weight: 700; {% if play.confidence == 'High' %}background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3);{% else %}background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3);{% endif %}">{{ play.confidence[0] }}</span>
+                            <span style="color: var(--text-secondary);">{{ play.z_score|z_to_confidence }}</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% else %}
 <div class="empty-state">
@@ -139,4 +212,50 @@
     </p>
 </div>
 {% endif %}
+
+<style>
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .hide-mobile {
+            display: none;
+        }
+    }
+</style>
+
+<script>
+    // View toggle functionality
+    function setView(view) {
+        const detailedView = document.getElementById('detailed-view');
+        const condensedView = document.getElementById('condensed-view');
+        const btnDetailed = document.getElementById('btn-detailed');
+        const btnCondensed = document.getElementById('btn-condensed');
+
+        if (view === 'detailed') {
+            detailedView.style.display = 'block';
+            condensedView.style.display = 'none';
+            btnDetailed.style.background = 'linear-gradient(135deg, var(--accent-green), var(--accent-blue))';
+            btnDetailed.style.color = 'var(--bg-primary)';
+            btnCondensed.style.background = 'transparent';
+            btnCondensed.style.color = 'var(--text-secondary)';
+        } else {
+            detailedView.style.display = 'none';
+            condensedView.style.display = 'block';
+            btnCondensed.style.background = 'linear-gradient(135deg, var(--accent-green), var(--accent-blue))';
+            btnCondensed.style.color = 'var(--bg-primary)';
+            btnDetailed.style.background = 'transparent';
+            btnDetailed.style.color = 'var(--text-secondary)';
+        }
+
+        // Save preference to localStorage
+        localStorage.setItem('tableView', view);
+    }
+
+    // Load saved view preference on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const savedView = localStorage.getItem('tableView');
+        if (savedView) {
+            setView(savedView);
+        }
+    });
+</script>
 {% endblock %}
