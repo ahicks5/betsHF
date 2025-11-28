@@ -3,60 +3,75 @@
 {% block title %}Upcoming Plays - PropEdge{% endblock %}
 
 {% block content %}
-<h2 style="margin-bottom: 1rem;">Upcoming Plays (Today & Tomorrow)</h2>
+<!-- Page Header with Model Branding -->
+<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <h2 style="margin: 0;">Active Plays</h2>
+    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.9rem; background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.2); border-radius: 6px;">
+        <span style="width: 6px; height: 6px; background: var(--accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--accent-green);"></span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 600; color: var(--accent-green);">Pulsar 1.0</span>
+    </div>
+</div>
 
-<!-- Compact Filters -->
-<div class="filters" style="padding: 1rem;">
-    <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; align-items: end;">
-        <div>
-            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Search</label>
-            <input
-                type="text"
-                id="search-input"
-                placeholder="Player, team..."
-                onkeyup="filterTable()"
-                style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.9rem;"
-            />
-        </div>
+<!-- Redesigned Filters -->
+<div class="card" style="padding: 1.2rem; margin-bottom: 1.5rem;">
+    <form method="get">
+        <div style="display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+            <!-- Search Box (Prominent) -->
+            <div style="flex: 1; min-width: 250px;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Search</label>
+                <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Player, team, matchup..."
+                    onkeyup="filterTable()"
+                    style="width: 100%; padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem; transition: border-color 0.2s ease;"
+                    onfocus="this.style.borderColor='var(--accent-green)'"
+                    onblur="this.style.borderColor='var(--border)'"
+                />
+            </div>
 
-        <div>
-            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Status</label>
-            <select name="game_status" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
-                <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active</option>
-                <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
-                <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live</option>
-                <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All</option>
-            </select>
-        </div>
+            <!-- Filter Dropdowns -->
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Status</label>
+                    <select name="game_status" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 110px;">
+                        <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
+                        <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live</option>
+                        <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All</option>
+                    </select>
+                </div>
 
-        <div>
-            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Confidence</label>
-            <select name="confidence" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
-                <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
-                {% for conf in all_confidences %}
-                <option value="{{ conf }}" {% if confidence_filter == conf %}selected{% endif %}>{{ conf }}</option>
-                {% endfor %}
-            </select>
-        </div>
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Confidence</label>
+                    <select name="confidence" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 110px;">
+                        <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
+                        {% for conf in all_confidences %}
+                        <option value="{{ conf }}" {% if confidence_filter == conf %}selected{% endif %}>{{ conf }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div>
-            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Stat</label>
-            <select name="stat" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
-                <option value="all" {% if stat_filter == 'all' %}selected{% endif %}>All</option>
-                {% for stat in all_stats %}
-                <option value="{{ stat }}" {% if stat_filter == stat %}selected{% endif %}>{{ stat }}</option>
-                {% endfor %}
-            </select>
-        </div>
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Stat</label>
+                    <select name="stat" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 110px;">
+                        <option value="all" {% if stat_filter == 'all' %}selected{% endif %}>All</option>
+                        {% for stat in all_stats %}
+                        <option value="{{ stat }}" {% if stat_filter == stat %}selected{% endif %}>{{ stat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div>
-            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Play</label>
-            <select name="recommendation" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
-                <option value="all" {% if recommendation_filter == 'all' %}selected{% endif %}>All</option>
-                {% for rec in all_recommendations %}
-                <option value="{{ rec }}" {% if recommendation_filter == rec %}selected{% endif %}>{{ rec }}</option>
-                {% endfor %}
-            </select>
+                <div>
+                    <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Direction</label>
+                    <select name="recommendation" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 110px;">
+                        <option value="all" {% if recommendation_filter == 'all' %}selected{% endif %}>All</option>
+                        {% for rec in all_recommendations %}
+                        <option value="{{ rec }}" {% if recommendation_filter == rec %}selected{% endif %}>{{ rec }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
         </div>
     </form>
 </div>
@@ -216,8 +231,13 @@
         }
 
         /* Stack filters on mobile */
-        .filters form {
-            grid-template-columns: 1fr !important;
+        .card form > div {
+            flex-direction: column !important;
+        }
+
+        .card form > div > div:first-child {
+            width: 100% !important;
+            min-width: 100% !important;
         }
     }
 </style>
