@@ -61,7 +61,8 @@ def today_plays():
     ).join(
         home_team, Game.home_team_id == home_team.id
     ).filter(
-        Play.created_at >= three_days_ago  # Get recent plays
+        Play.created_at >= three_days_ago,  # Get recent plays
+        Play.recommendation != 'NO PLAY'  # Hide NO PLAY recommendations
     ).order_by(desc(func.abs(Play.z_score)))
 
     # Get all results - (play, game, away_team, home_team)
@@ -75,7 +76,7 @@ def today_plays():
     confidence_filter = request.args.get('confidence', 'all')
     stat_filter = request.args.get('stat', 'all')
     recommendation_filter = request.args.get('recommendation', 'all')
-    game_status_filter = request.args.get('game_status', 'active')  # Default to 'active' instead of 'all'
+    game_status_filter = request.args.get('game_status', 'upcoming')  # Default to 'upcoming' to show all future games
 
     if confidence_filter != 'all':
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games if p.confidence == confidence_filter]
@@ -137,27 +138,36 @@ def plays_history():
     # Get plays where the game is completed OR started more than 4 hours ago
     four_hours_ago = (now_local - timedelta(hours=4)).astimezone(pytz.utc).replace(tzinfo=None)
 
-    # Join with PropLine and Game to check game status
+    # Join with PropLine, Game, and Teams to get full info (like today_plays)
     from database.models import PropLine
+    away_team = aliased(Team)
+    home_team = aliased(Team)
 
-    plays = session.query(Play).join(
+    results = session.query(Play, Game, away_team, home_team).join(
         PropLine, Play.prop_line_id == PropLine.id
     ).join(
         Game, PropLine.game_id == Game.id
+    ).join(
+        away_team, Game.away_team_id == away_team.id
+    ).join(
+        home_team, Game.home_team_id == home_team.id
     ).filter(
         Play.created_at >= cutoff_utc,  # Within date range
+        Play.recommendation != 'NO PLAY',  # Hide NO PLAY recommendations
         (Game.is_completed == True) | (Game.game_date < four_hours_ago)  # Game is done
     ).order_by(desc(Play.created_at), desc(func.abs(Play.z_score))).all()
 
     # Group by date (convert to local timezone first)
+    # Store as (play, game, matchup) tuples like today_plays
     plays_by_date = {}
-    for play in plays:
+    for play, game, away, home in results:
         # Convert UTC to local timezone before extracting date
         local_dt = utc_to_local(play.created_at)
         date = local_dt.date()
         if date not in plays_by_date:
             plays_by_date[date] = []
-        plays_by_date[date].append(play)
+        matchup = f"{away.abbreviation} @ {home.abbreviation}"
+        plays_by_date[date].append((play, game, matchup))
 
     return render_template('history.html',
                          plays_by_date=plays_by_date,

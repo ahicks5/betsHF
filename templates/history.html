@@ -28,6 +28,8 @@
         <table>
             <thead>
                 <tr>
+                    <th>Matchup</th>
+                    <th>Game Date</th>
                     <th>Player</th>
                     <th>Stat</th>
                     <th>Vegas Line</th>
@@ -40,8 +42,11 @@
                 </tr>
             </thead>
             <tbody>
-                {% for play in plays %}
+                {% for play, game, matchup in plays %}
+                {% set game_local = game.game_date|to_local %}
                 <tr>
+                    <td style="white-space: nowrap; font-weight: 600;">{{ matchup }}</td>
+                    <td style="white-space: nowrap;">{{ game_local.strftime('%b %d, %I:%M %p') }}</td>
                     <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
                     <td>{{ play.stat_type }}</td>
                     <td><strong>{{ play.line_value|format_line }}</strong></td>
@@ -71,7 +76,7 @@
                     </td>
                     <td>
                         {% if play.actual_result is not none %}
-                            <strong>{{ play.actual_result|format_float }}</strong>
+                            <strong>{{ play.actual_result|int }}</strong>
                         {% else %}
                             <span style="color: #95a5a6;">Pending</span>
                         {% endif %}
