@@ -492,9 +492,13 @@
                 padding: 15px;
             }
 
-            /* Ultra-compact header on mobile */
+            /* Ultra-compact sticky header on mobile */
             header {
                 padding: 0.5rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                backdrop-filter: blur(12px);
             }
 
             header .container {
@@ -507,6 +511,18 @@
             header h1 {
                 font-size: 1.1rem;
                 margin: 0;
+                font-size: 0;
+            }
+
+            /* Show "TFP" on mobile instead of full name */
+            header h1::before {
+                content: 'TFP';
+                font-size: 1.1rem;
+                background: linear-gradient(135deg, var(--accent-green) 0%, var(--accent-blue) 50%, var(--accent-purple) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                font-weight: 700;
             }
 
             header h1::after {
@@ -540,14 +556,14 @@
                 white-space: nowrap;
             }
 
-            /* Sticky table headers on mobile */
+            /* Sticky table headers on mobile - stick below header */
             th {
                 position: sticky;
-                top: 0;
-                z-index: 10;
-                background: rgba(0, 255, 136, 0.05);
+                top: 50px; /* Stick below the mobile header */
+                z-index: 50;
+                background: var(--bg-card);
                 backdrop-filter: blur(8px);
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
             }
 
             th, td {
