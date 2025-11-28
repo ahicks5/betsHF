@@ -3,40 +3,35 @@
 {% block title %}Upcoming Plays - PropEdge{% endblock %}
 
 {% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
-    <div>
-        <h2 style="margin: 0;">Upcoming Plays (Today & Tomorrow)</h2>
-        <p style="color: #7f8c8d; margin: 0.25rem 0 0 0; font-size: 0.9rem;">
-            Showing all upcoming games with available props
-        </p>
-    </div>
+<h2 style="margin-bottom: 1rem;">Upcoming Plays (Today & Tomorrow)</h2>
 
-    <!-- View Toggle -->
-    <div style="display: flex; gap: 0.5rem; background: var(--bg-card); border-radius: 10px; padding: 0.4rem; border: 1px solid var(--border);">
-        <button onclick="setView('detailed')" id="btn-detailed" style="padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); color: var(--bg-primary);">
-            Detailed
-        </button>
-        <button onclick="setView('condensed')" id="btn-condensed" style="padding: 0.5rem 1rem; border: none; border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; background: transparent; color: var(--text-secondary);">
-            Condensed
-        </button>
-    </div>
-</div>
-
-<div class="filters">
-    <form method="get">
+<!-- Compact Filters -->
+<div class="filters" style="padding: 1rem;">
+    <form method="get" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; align-items: end;">
         <div>
-            <label>Game Status:</label>
-            <select name="game_status" onchange="this.form.submit()">
-                <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active Only</option>
+            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Search</label>
+            <input
+                type="text"
+                id="search-input"
+                placeholder="Player, team..."
+                onkeyup="filterTable()"
+                style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.9rem;"
+            />
+        </div>
+
+        <div>
+            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Status</label>
+            <select name="game_status" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
+                <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active</option>
                 <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
                 <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live</option>
-                <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All (inc. Done)</option>
+                <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All</option>
             </select>
         </div>
 
         <div>
-            <label>Confidence:</label>
-            <select name="confidence" onchange="this.form.submit()">
+            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Confidence</label>
+            <select name="confidence" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
                 <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
                 {% for conf in all_confidences %}
                 <option value="{{ conf }}" {% if confidence_filter == conf %}selected{% endif %}>{{ conf }}</option>
@@ -45,8 +40,8 @@
         </div>
 
         <div>
-            <label>Stat:</label>
-            <select name="stat" onchange="this.form.submit()">
+            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Stat</label>
+            <select name="stat" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
                 <option value="all" {% if stat_filter == 'all' %}selected{% endif %}>All</option>
                 {% for stat in all_stats %}
                 <option value="{{ stat }}" {% if stat_filter == stat %}selected{% endif %}>{{ stat }}</option>
@@ -55,22 +50,33 @@
         </div>
 
         <div>
-            <label>Recommendation:</label>
-            <select name="recommendation" onchange="this.form.submit()">
+            <label style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem; display: block;">Play</label>
+            <select name="recommendation" onchange="this.form.submit()" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
                 <option value="all" {% if recommendation_filter == 'all' %}selected{% endif %}>All</option>
                 {% for rec in all_recommendations %}
                 <option value="{{ rec }}" {% if recommendation_filter == rec %}selected{% endif %}>{{ rec }}</option>
                 {% endfor %}
             </select>
         </div>
-
-        <button type="submit">Filter</button>
     </form>
 </div>
 
 {% if plays_with_games %}
 <div class="card">
-    <h3>{{ plays_with_games|length }} Plays Found</h3>
+    <!-- Header with View Toggle -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0;"><span id="visible-count">{{ plays_with_games|length }}</span> Plays</h3>
+
+        <!-- View Toggle -->
+        <div style="display: flex; gap: 0.5rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.3rem; border: 1px solid var(--border);">
+            <button onclick="setView('detailed')" id="btn-detailed" style="padding: 0.4rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); color: var(--bg-primary);">
+                Detailed
+            </button>
+            <button onclick="setView('condensed')" id="btn-condensed" style="padding: 0.4rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; background: transparent; color: var(--text-secondary);">
+                Condensed
+            </button>
+        </div>
+    </div>
 
     <!-- DETAILED VIEW -->
     <div id="detailed-view">
@@ -208,6 +214,11 @@
         .hide-mobile {
             display: none;
         }
+
+        /* Stack filters on mobile */
+        .filters form {
+            grid-template-columns: 1fr !important;
+        }
     }
 </style>
 
@@ -237,6 +248,43 @@
 
         // Save preference to localStorage
         localStorage.setItem('tableView', view);
+
+        // Reapply filter after view change
+        filterTable();
+    }
+
+    // Search/filter table functionality
+    function filterTable() {
+        const input = document.getElementById('search-input');
+        const filter = input.value.toLowerCase();
+        const detailedRows = document.querySelectorAll('#detailed-view tbody tr');
+        const condensedRows = document.querySelectorAll('#condensed-view tbody tr');
+
+        let visibleCount = 0;
+
+        // Filter detailed view rows
+        detailedRows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(filter)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Filter condensed view rows
+        condensedRows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(filter)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update visible count
+        document.getElementById('visible-count').textContent = visibleCount;
     }
 
     // Load saved view preference on page load
