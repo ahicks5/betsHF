@@ -12,6 +12,7 @@ from data.nba_stats import sync_all_active_players, get_player_stat_distribution
 from database.db import get_session
 from database.models import Play, PropLine, Player, PlayerGameStats
 from datetime import datetime, timedelta
+import pytz
 
 
 def grade_ungraded_plays():
@@ -63,9 +64,31 @@ def grade_ungraded_plays():
                 continue
 
             # Get the player's stats for this specific game
-            game_stats = session.query(PlayerGameStats).filter_by(
-                player_id=player.id,
-                nba_game_id=game.nba_game_id
+            # NOTE: We match by player + game DATE (not NBA Game ID) because:
+            # - Odds API gives us one NBA game ID format (hash)
+            # - NBA API gives us a different NBA game ID format (official code)
+            # So we match by the date instead
+            #
+            # IMPORTANT: Game dates are stored in UTC, but NBA game dates are in local time
+            # Convert game.game_date to Central time to get the actual game date
+            from sqlalchemy import func
+
+            utc = pytz.UTC
+            central = pytz.timezone('America/Chicago')
+
+            # Make game_date timezone-aware if it isn't already
+            if game.game_date.tzinfo is None:
+                game_date_utc = utc.localize(game.game_date)
+            else:
+                game_date_utc = game.game_date
+
+            # Convert to Central time and extract date
+            game_date_central = game_date_utc.astimezone(central)
+            game_date_only = game_date_central.date()
+
+            game_stats = session.query(PlayerGameStats).filter(
+                PlayerGameStats.player_id == player.id,
+                func.date(PlayerGameStats.game_date) == game_date_only
             ).first()
 
             if not game_stats:
