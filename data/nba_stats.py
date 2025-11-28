@@ -88,22 +88,8 @@ def fetch_player_game_log(player_id, season=None, force_refresh=False):
 
         if df.empty:
             print(f"[WARNING] No games found for {player.full_name} in {season}")
-
-            # Cache the "no games" result to avoid repeatedly checking
-            # Create a marker record so we know we checked recently
-            marker = PlayerGameStats(
-                player_id=player_id,
-                season=season,
-                game_date=datetime.utcnow(),  # Use current time as placeholder
-                fetched_at=datetime.utcnow(),
-                minutes=None,  # All stats None to indicate "no games"
-                points=None,
-                rebounds=None,
-                assists=None
-            )
-            session.add(marker)
-            session.commit()
-
+            # Don't create marker records - just return empty list
+            # This avoids database constraint errors for players with no games
             return []
 
         # Store in database
