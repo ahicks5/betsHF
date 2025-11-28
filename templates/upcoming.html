@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Upcoming Plays - NBA Props Analyzer{% endblock %}
+
+{% block content %}
+<h2>Upcoming Plays (Today & Tomorrow)</h2>
+<p style="color: #7f8c8d; margin-top: -10px; margin-bottom: 20px;">
+    Showing all upcoming games with available props
+</p>
+
+<div class="filters">
+    <form method="get">
+        <div>
+            <label>Game Status:</label>
+            <select name="game_status" onchange="this.form.submit()">
+                <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active Only</option>
+                <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
+                <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live</option>
+                <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All (inc. Done)</option>
+            </select>
+        </div>
+
+        <div>
+            <label>Confidence:</label>
+            <select name="confidence" onchange="this.form.submit()">
+                <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
+                {% for conf in all_confidences %}
+                <option value="{{ conf }}" {% if confidence_filter == conf %}selected{% endif %}>{{ conf }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label>Stat:</label>
+            <select name="stat" onchange="this.form.submit()">
+                <option value="all" {% if stat_filter == 'all' %}selected{% endif %}>All</option>
+                {% for stat in all_stats %}
+                <option value="{{ stat }}" {% if stat_filter == stat %}selected{% endif %}>{{ stat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label>Recommendation:</label>
+            <select name="recommendation" onchange="this.form.submit()">
+                <option value="all" {% if recommendation_filter == 'all' %}selected{% endif %}>All</option>
+                {% for rec in all_recommendations %}
+                <option value="{{ rec }}" {% if recommendation_filter == rec %}selected{% endif %}>{{ rec }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit">Filter</button>
+    </form>
+</div>
+
+{% if plays_with_games %}
+<div class="card">
+    <h3>{{ plays_with_games|length }} Plays Found</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Matchup</th>
+                <th>Game Date/Time</th>
+                <th>Status</th>
+                <th>Player</th>
+                <th>Stat</th>
+                <th>Vegas Line</th>
+                <th>Player Avg</th>
+                <th>Play</th>
+                <th>Strength</th>
+                <th>Odds</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for play, game, matchup in plays_with_games %}
+            {% set status = game|game_status %}
+            {% set game_local = game.game_date|to_local %}
+            <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
+                <td style="white-space: nowrap; font-weight: 600;">{{ matchup }}</td>
+                <td style="white-space: nowrap;">
+                    {{ game_local.strftime('%b %d') }}<br>
+                    <small style="color: #7f8c8d;">{{ game_local.strftime('%I:%M %p') }} ({{ game.game_date|time_until }})</small>
+                </td>
+                <td>
+                    {% if status == 'upcoming' %}
+                        <span class="badge" style="background: #3498db; color: white;">Upcoming</span>
+                    {% elif status == 'live' %}
+                        <span class="badge" style="background: #e74c3c; color: white;">🔴 LIVE</span>
+                    {% else %}
+                        <span class="badge" style="background: #95a5a6; color: white;">Done</span>
+                    {% endif %}
+                </td>
+                <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
+                <td>{{ play.stat_type }}</td>
+                <td><strong>{{ play.line_value|format_line }}</strong></td>
+                <td>
+                    {{ play.expected_value|format_float }}
+                    {% if play.games_played %}
+                        <br><small style="color: var(--text-dim);">({{ play.games_played }} GP)</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if play.recommendation == 'OVER' %}
+                        <span class="badge badge-over">OVER</span>
+                    {% elif play.recommendation == 'UNDER' %}
+                        <span class="badge badge-under">UNDER</span>
+                    {% else %}
+                        <span class="badge badge-no-play">NO PLAY</span>
+                    {% endif %}
+                </td>
+                <td><strong>{{ play.z_score|z_to_confidence }}</strong></td>
+                <td>
+                    {% if play.recommendation == 'OVER' %}
+                        {{ play.over_odds|format_odds }}
+                    {% elif play.recommendation == 'UNDER' %}
+                        {{ play.under_odds|format_odds }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <h2>No upcoming plays found</h2>
+    <p>Run <code>python scripts/collect_today.py</code> followed by <code>python scripts/find_plays.py</code> to generate plays.</p>
+    <p style="color: #7f8c8d; margin-top: 10px;">
+        <small>Note: Props for tomorrow's games are usually available after 10 AM ET today.</small>
+    </p>
+</div>
+{% endif %}
+{% endblock %}

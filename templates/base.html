@@ -511,7 +511,7 @@
         <div class="container">
             <h1>NBA Props Analyzer</h1>
             <nav>
-                <a href="/" {% if request.path == '/' or request.path.startswith('/plays/today') %}class="active"{% endif %}>Today's Plays</a>
+                <a href="/" {% if request.path == '/' or request.path.startswith('/plays/today') or request.path.startswith('/plays/upcoming') %}class="active"{% endif %}>Upcoming</a>
                 <a href="/plays/history" {% if request.path.startswith('/plays/history') %}class="active"{% endif %}>History</a>
                 <a href="/stats" {% if request.path == '/stats' %}class="active"{% endif %}>Stats</a>
             </nav>

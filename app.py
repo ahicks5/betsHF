@@ -33,21 +33,22 @@ def get_local_now():
 
 @app.route('/')
 def index():
-    """Home page - redirect to today's plays"""
-    return today_plays()
+    """Home page - redirect to upcoming plays"""
+    return upcoming_plays()
 
 
-@app.route('/plays/today')
-def today_plays():
-    """Show today's plays"""
+@app.route('/plays/upcoming')
+@app.route('/plays/today')  # Keep old route for backwards compatibility
+def upcoming_plays():
+    """Show upcoming plays (today + tomorrow)"""
     session = get_session()
 
-    # Get today's plays with game info - join with PropLine, Game, and Teams
+    # Get upcoming plays with game info - join with PropLine, Game, and Teams
     # Use aliases for Team table since we join it twice (away and home)
     away_team = aliased(Team)
     home_team = aliased(Team)
 
-    # Get all recent plays (last 3 days) - we'll filter by game status below
+    # Get recent plays (last 3 days) through future games
     now_local = get_local_now()
     today_local = now_local.date()
     three_days_ago = (now_local - timedelta(days=3)).astimezone(pytz.utc).replace(tzinfo=None)
@@ -111,7 +112,7 @@ def today_plays():
     all_confidences = sorted(set(p.confidence for p in all_plays if p.confidence)) if all_plays else []
     all_recommendations = sorted(set(p.recommendation for p in all_plays)) if all_plays else []
 
-    return render_template('today.html',
+    return render_template('upcoming.html',
                          plays_with_games=plays_with_games,
                          date=today_local,
                          now=now,
