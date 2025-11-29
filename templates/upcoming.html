@@ -78,18 +78,30 @@
 
 {% if plays_with_games %}
 <div class="card">
-    <!-- Header with View Toggle -->
+    <!-- Header with View Toggle and Export -->
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
         <h3 style="margin: 0;"><span id="visible-count">{{ plays_with_games|length }}</span> Plays</h3>
 
-        <!-- View Toggle -->
-        <div style="display: flex; gap: 0.5rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.3rem; border: 1px solid var(--border);">
-            <button onclick="setView('detailed')" id="btn-detailed" style="padding: 0.4rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); color: var(--bg-primary);">
-                Detailed
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <!-- Export Button -->
+            <button onclick="exportToCSV()" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 0.85rem; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--accent-green)'; this.style.background='rgba(0,255,136,0.1)'" onmouseout="this.style.borderColor='var(--border)'; this.style.background='var(--bg-secondary)'">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Export CSV
             </button>
-            <button onclick="setView('condensed')" id="btn-condensed" style="padding: 0.4rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; background: transparent; color: var(--text-secondary);">
-                Condensed
-            </button>
+
+            <!-- View Toggle -->
+            <div style="display: flex; gap: 0.5rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.3rem; border: 1px solid var(--border);">
+                <button onclick="setView('detailed')" id="btn-detailed" style="padding: 0.4rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; background: linear-gradient(135deg, var(--accent-green), var(--accent-blue)); color: var(--bg-primary);">
+                    Detailed
+                </button>
+                <button onclick="setView('condensed')" id="btn-condensed" style="padding: 0.4rem 1rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; background: transparent; color: var(--text-secondary);">
+                    Condensed
+                </button>
+            </div>
         </div>
     </div>
 
@@ -400,5 +412,55 @@
             setView(savedView);
         }
     });
+
+    function exportToCSV() {
+        // Determine which view is currently active
+        const detailedView = document.getElementById('detailed-view');
+        const isDetailed = detailedView.style.display !== 'none';
+        const tableId = isDetailed ? 'detailed-table' : 'condensed-table';
+        const table = document.getElementById(tableId);
+        const csvRows = [];
+
+        // Get headers
+        const headers = [];
+        table.querySelectorAll('thead th').forEach(th => {
+            // Remove sort icon from header text
+            headers.push(th.textContent.replace(/[⇅↑↓]/g, '').trim());
+        });
+        csvRows.push(headers.join(','));
+
+        // Get visible data rows
+        table.querySelectorAll('tbody tr').forEach(row => {
+            if (row.style.display === 'none') return; // Skip hidden rows
+
+            const cols = [];
+            row.querySelectorAll('td').forEach((td, index) => {
+                let value = td.textContent.trim();
+                // Clean up the value - remove extra whitespace
+                value = value.replace(/\s+/g, ' ');
+                // Escape quotes and wrap in quotes if contains comma
+                if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                    value = '"' + value.replace(/"/g, '""') + '"';
+                }
+                cols.push(value);
+            });
+            csvRows.push(cols.join(','));
+        });
+
+        // Create and download file
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        // Generate filename with date
+        const today = new Date().toISOString().split('T')[0];
+        link.setAttribute('href', url);
+        link.setAttribute('download', `active_plays_${today}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 </script>
 {% endblock %}

@@ -925,5 +925,170 @@ def calculate_profit(play, bet_amount=10):
         return f'<span style="color: #e74c3c; font-weight: bold;">-${bet_amount:.2f}</span>'
 
 
+@app.route('/api/games-by-date')
+def api_games_by_date():
+    """API endpoint to get games for a specific date"""
+    from flask import jsonify
+
+    session = get_session()
+    date_str = request.args.get('date')
+
+    if not date_str:
+        return jsonify({'error': 'Date parameter required'}), 400
+
+    try:
+        # Parse the date
+        query_date = datetime.strptime(date_str, '%Y-%m-%d')
+        # Create start and end of day in local timezone, then convert to UTC
+        start_local = LOCAL_TIMEZONE.localize(query_date)
+        end_local = LOCAL_TIMEZONE.localize(query_date + timedelta(days=1))
+        start_utc = start_local.astimezone(pytz.utc).replace(tzinfo=None)
+        end_utc = end_local.astimezone(pytz.utc).replace(tzinfo=None)
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+    # Get games for this date
+    away_team = aliased(Team)
+    home_team = aliased(Team)
+
+    games = session.query(Game, away_team, home_team).join(
+        away_team, Game.away_team_id == away_team.id
+    ).join(
+        home_team, Game.home_team_id == home_team.id
+    ).filter(
+        Game.game_date >= start_utc,
+        Game.game_date < end_utc
+    ).order_by(Game.game_date).all()
+
+    result = []
+    for game, away, home in games:
+        result.append({
+            'id': game.id,
+            'matchup': f"{away.abbreviation} @ {home.abbreviation}",
+            'away_team': away.full_name,
+            'home_team': home.full_name,
+            'game_date': utc_to_local(game.game_date).strftime('%I:%M %p'),
+            'is_completed': game.is_completed
+        })
+
+    return jsonify(result)
+
+
+@app.route('/api/game-analysis/<int:game_id>')
+def api_game_analysis(game_id):
+    """API endpoint to get player prop analysis for a specific game"""
+    from flask import jsonify
+
+    session = get_session()
+    bet_amount = 10
+
+    # Get game info
+    away_team = aliased(Team)
+    home_team = aliased(Team)
+
+    game_info = session.query(Game, away_team, home_team).join(
+        away_team, Game.away_team_id == away_team.id
+    ).join(
+        home_team, Game.home_team_id == home_team.id
+    ).filter(Game.id == game_id).first()
+
+    if not game_info:
+        return jsonify({'error': 'Game not found'}), 404
+
+    game, away, home = game_info
+    matchup = f"{away.abbreviation} @ {home.abbreviation}"
+
+    # Get all plays for this game
+    plays = session.query(Play).join(
+        PropLine, Play.prop_line_id == PropLine.id
+    ).filter(
+        PropLine.game_id == game_id,
+        Play.recommendation != 'NO PLAY'
+    ).all()
+
+    # Analyze plays
+    over_plays = [p for p in plays if p.recommendation == 'OVER']
+    under_plays = [p for p in plays if p.recommendation == 'UNDER']
+
+    over_wins = len([p for p in over_plays if p.was_correct == True])
+    over_losses = len([p for p in over_plays if p.was_correct == False])
+    under_wins = len([p for p in under_plays if p.was_correct == True])
+    under_losses = len([p for p in under_plays if p.was_correct == False])
+
+    # Calculate profits
+    def calc_profit(plays_list):
+        profit = 0
+        for play in plays_list:
+            if play.was_correct == True:
+                odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+                if odds and odds < 0:
+                    profit += bet_amount * (100 / abs(odds))
+                elif odds and odds > 0:
+                    profit += bet_amount * (odds / 100)
+                else:
+                    profit += bet_amount
+            elif play.was_correct == False:
+                profit -= bet_amount
+        return round(profit, 2)
+
+    over_profit = calc_profit(over_plays)
+    under_profit = calc_profit(under_plays)
+
+    # Player-level breakdown
+    player_results = []
+    for play in plays:
+        odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+        profit = 0
+        if play.was_correct == True:
+            if odds and odds < 0:
+                profit = bet_amount * (100 / abs(odds))
+            elif odds and odds > 0:
+                profit = bet_amount * (odds / 100)
+            else:
+                profit = bet_amount
+        elif play.was_correct == False:
+            profit = -bet_amount
+
+        player_results.append({
+            'player_name': play.player_name,
+            'stat_type': play.stat_type,
+            'line_value': play.line_value,
+            'recommendation': play.recommendation,
+            'actual_result': play.actual_result,
+            'was_correct': play.was_correct,
+            'odds': odds,
+            'profit': round(profit, 2),
+            'confidence': play.confidence,
+            'z_score': round(play.z_score, 2) if play.z_score else None
+        })
+
+    # Sort by profit (wins first, then losses)
+    player_results.sort(key=lambda x: (x['was_correct'] is not None, x['profit']), reverse=True)
+
+    return jsonify({
+        'game': {
+            'id': game_id,
+            'matchup': matchup,
+            'away_team': away.full_name,
+            'home_team': home.full_name,
+            'game_date': utc_to_local(game.game_date).strftime('%b %d, %Y %I:%M %p'),
+            'is_completed': game.is_completed
+        },
+        'summary': {
+            'total_plays': len(plays),
+            'over_count': len(over_plays),
+            'under_count': len(under_plays),
+            'over_wins': over_wins,
+            'over_losses': over_losses,
+            'under_wins': under_wins,
+            'under_losses': under_losses,
+            'over_profit': over_profit,
+            'under_profit': under_profit,
+            'total_profit': round(over_profit + under_profit, 2)
+        },
+        'players': player_results
+    })
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

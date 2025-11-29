@@ -574,6 +574,223 @@ new Chart(ctx, {
     </table>
 </div>
 
+<!-- GAME ANALYSIS -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Game Analysis</h2>
+<div class="card">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+        <span style="font-size: 1.5rem;">🔍</span>
+        <div>
+            <h3 style="margin: 0;">Analyze by Game</h3>
+            <p style="margin: 0.25rem 0 0 0; color: var(--text-dim); font-size: 0.85rem;">Select a date and matchup to see player prop performance</p>
+        </div>
+    </div>
+
+    <!-- Game Selection -->
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+        <div>
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Date</label>
+            <input type="date" id="game-analysis-date" onchange="loadGamesForDate()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
+        </div>
+        <div style="min-width: 200px;">
+            <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Matchup</label>
+            <select id="game-analysis-select" onchange="loadGameAnalysis()" style="padding: 0.6rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem; min-width: 180px;" disabled>
+                <option value="">Select a date first</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Analysis Results -->
+    <div id="game-analysis-results" style="display: none;">
+        <!-- Summary Cards -->
+        <div id="game-analysis-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        </div>
+
+        <!-- Player Results Table -->
+        <div style="max-height: 400px; overflow-y: auto;">
+            <table id="game-analysis-table">
+                <thead style="position: sticky; top: 0; background: var(--bg-primary); z-index: 10;">
+                    <tr>
+                        <th>Player</th>
+                        <th>Stat</th>
+                        <th>Line</th>
+                        <th>Play</th>
+                        <th>Result</th>
+                        <th>Outcome</th>
+                        <th>P/L</th>
+                    </tr>
+                </thead>
+                <tbody id="game-analysis-tbody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="game-analysis-empty" style="text-align: center; padding: 2rem; color: var(--text-dim);">
+        <p>Select a date and game above to analyze player prop performance</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="game-analysis-loading" style="display: none; text-align: center; padding: 2rem;">
+        <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--accent-green); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin-top: 1rem; color: var(--text-dim);">Loading analysis...</p>
+    </div>
+</div>
+
+<script>
+async function loadGamesForDate() {
+    const dateInput = document.getElementById('game-analysis-date');
+    const gameSelect = document.getElementById('game-analysis-select');
+    const resultsDiv = document.getElementById('game-analysis-results');
+    const emptyDiv = document.getElementById('game-analysis-empty');
+
+    if (!dateInput.value) {
+        gameSelect.innerHTML = '<option value="">Select a date first</option>';
+        gameSelect.disabled = true;
+        return;
+    }
+
+    gameSelect.innerHTML = '<option value="">Loading...</option>';
+    gameSelect.disabled = true;
+    resultsDiv.style.display = 'none';
+    emptyDiv.style.display = 'block';
+
+    try {
+        const response = await fetch(`/api/games-by-date?date=${dateInput.value}`);
+        const games = await response.json();
+
+        if (games.length === 0) {
+            gameSelect.innerHTML = '<option value="">No games on this date</option>';
+            return;
+        }
+
+        gameSelect.innerHTML = '<option value="">Select a game...</option>';
+        games.forEach(game => {
+            const status = game.is_completed ? '✓' : '';
+            gameSelect.innerHTML += `<option value="${game.id}">${game.matchup} ${game.game_date} ${status}</option>`;
+        });
+        gameSelect.disabled = false;
+    } catch (error) {
+        console.error('Error loading games:', error);
+        gameSelect.innerHTML = '<option value="">Error loading games</option>';
+    }
+}
+
+async function loadGameAnalysis() {
+    const gameSelect = document.getElementById('game-analysis-select');
+    const resultsDiv = document.getElementById('game-analysis-results');
+    const emptyDiv = document.getElementById('game-analysis-empty');
+    const loadingDiv = document.getElementById('game-analysis-loading');
+    const summaryDiv = document.getElementById('game-analysis-summary');
+    const tbody = document.getElementById('game-analysis-tbody');
+
+    const gameId = gameSelect.value;
+    if (!gameId) {
+        resultsDiv.style.display = 'none';
+        emptyDiv.style.display = 'block';
+        return;
+    }
+
+    emptyDiv.style.display = 'none';
+    loadingDiv.style.display = 'block';
+    resultsDiv.style.display = 'none';
+
+    try {
+        const response = await fetch(`/api/game-analysis/${gameId}`);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        // Build summary cards
+        const s = data.summary;
+        const overWinRate = s.over_count > 0 ? ((s.over_wins / (s.over_wins + s.over_losses)) * 100).toFixed(0) : 0;
+        const underWinRate = s.under_count > 0 ? ((s.under_wins / (s.under_wins + s.under_losses)) * 100).toFixed(0) : 0;
+
+        summaryDiv.innerHTML = `
+            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Total Plays</div>
+                <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0;">${s.total_plays}</div>
+            </div>
+            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center; border-top: 3px solid var(--success);">
+                <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Overs</div>
+                <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0; color: var(--success);">${s.over_wins}-${s.over_losses}</div>
+                <div style="font-size: 0.8rem; color: ${s.over_profit >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                    ${s.over_profit >= 0 ? '+' : ''}$${s.over_profit.toFixed(2)}
+                </div>
+            </div>
+            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center; border-top: 3px solid var(--accent-blue);">
+                <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Unders</div>
+                <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0; color: var(--accent-blue);">${s.under_wins}-${s.under_losses}</div>
+                <div style="font-size: 0.8rem; color: ${s.under_profit >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                    ${s.under_profit >= 0 ? '+' : ''}$${s.under_profit.toFixed(2)}
+                </div>
+            </div>
+            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center; border-top: 3px solid ${s.total_profit >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase;">Game P/L</div>
+                <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0; color: ${s.total_profit >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                    ${s.total_profit >= 0 ? '+' : ''}$${s.total_profit.toFixed(2)}
+                </div>
+            </div>
+        `;
+
+        // Build player table
+        tbody.innerHTML = '';
+        data.players.forEach(p => {
+            const badgeClass = p.recommendation === 'OVER' ? 'badge-over' : 'badge-under';
+            let outcomeHtml = '<span style="color: var(--text-dim);">-</span>';
+            if (p.was_correct === true) {
+                outcomeHtml = '<span class="badge" style="background: var(--success); color: white;">WIN</span>';
+            } else if (p.was_correct === false) {
+                outcomeHtml = '<span class="badge" style="background: var(--danger); color: white;">LOSS</span>';
+            }
+
+            let profitHtml = '<span style="color: var(--text-dim);">-</span>';
+            if (p.was_correct !== null) {
+                const color = p.profit >= 0 ? 'var(--success)' : 'var(--danger)';
+                profitHtml = `<span style="color: ${color}; font-weight: bold; font-family: 'JetBrains Mono', monospace;">${p.profit >= 0 ? '+' : ''}$${p.profit.toFixed(2)}</span>`;
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>${p.player_name}</strong></td>
+                    <td>${p.stat_type}</td>
+                    <td>${p.line_value.toFixed(1)}</td>
+                    <td><span class="badge ${badgeClass}">${p.recommendation}</span></td>
+                    <td>${p.actual_result !== null ? Math.round(p.actual_result) : '-'}</td>
+                    <td>${outcomeHtml}</td>
+                    <td>${profitHtml}</td>
+                </tr>
+            `;
+        });
+
+        loadingDiv.style.display = 'none';
+        resultsDiv.style.display = 'block';
+    } catch (error) {
+        console.error('Error loading analysis:', error);
+        loadingDiv.style.display = 'none';
+        emptyDiv.innerHTML = `<p style="color: var(--danger);">Error loading analysis: ${error.message}</p>`;
+        emptyDiv.style.display = 'block';
+    }
+}
+
+// Set default date to yesterday
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('game-analysis-date');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    dateInput.value = yesterday.toISOString().split('T')[0];
+    loadGamesForDate();
+});
+</script>
+
+<style>
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+
 {% else %}
 <div class="card" style="margin-top: 2rem; text-align: center; padding: 3rem 1.5rem;">
     <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
