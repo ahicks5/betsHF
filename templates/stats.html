@@ -3,14 +3,22 @@
 {% block title %}Analytics Dashboard - TakeFreePoints.com{% endblock %}
 
 {% block content %}
-<!-- Page Header with Model Branding -->
+<!-- Page Header -->
 <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
     <h2 style="margin: 0;">Analytics Dashboard</h2>
-    <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.9rem; background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.2); border-radius: 6px;">
-        <span style="width: 6px; height: 6px; background: var(--accent-green); border-radius: 50%; box-shadow: 0 0 8px var(--accent-green);"></span>
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 600; color: var(--accent-green);">Pulsar 1.0</span>
-    </div>
 </div>
+
+{% if total_plays == 0 %}
+<!-- No Data State -->
+<div class="card" style="text-align: center; padding: 3rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+    <h3 style="margin-bottom: 0.5rem;">No Data Yet for {{ model_config.display_name }}</h3>
+    <p style="color: var(--text-secondary);">Run the analysis script to generate plays for this model.</p>
+    <p style="color: var(--text-dim); font-size: 0.85rem; margin-top: 1rem;">
+        <code>python scripts/find_plays.py --model {{ model_filter }}</code>
+    </p>
+</div>
+{% else %}
 
 <!-- KEY METRICS -->
 <div class="stat-grid">
@@ -1064,6 +1072,9 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
+{% endif %}
+<!-- End of total_plays > 0 block -->
 
 <!-- ABOUT SECTION -->
 <div class="card" style="margin-top: 2.5rem;">
