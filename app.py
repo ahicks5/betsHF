@@ -312,6 +312,7 @@ def stats():
 
     # Calculate profit/loss based on American odds
     # Use the play's bet_amount (varies by model)
+    base_bet_amount = 10
     total_profit = 0
     total_wagered = 0
     for play in graded_plays:
