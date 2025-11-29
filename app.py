@@ -974,6 +974,110 @@ def api_games_by_date():
     return jsonify(result)
 
 
+@app.route('/api/daily-breakdown')
+def api_daily_breakdown():
+    """API endpoint to get profit/loss breakdown for all games on a specific date"""
+    from flask import jsonify
+
+    session = get_session()
+    date_str = request.args.get('date')
+    bet_amount = 10
+
+    if not date_str:
+        return jsonify({'error': 'Date parameter required'}), 400
+
+    try:
+        query_date = datetime.strptime(date_str, '%Y-%m-%d')
+        start_local = LOCAL_TIMEZONE.localize(query_date)
+        end_local = LOCAL_TIMEZONE.localize(query_date + timedelta(days=1))
+        start_utc = start_local.astimezone(pytz.utc).replace(tzinfo=None)
+        end_utc = end_local.astimezone(pytz.utc).replace(tzinfo=None)
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
+
+    # Get all games for this date with team info
+    away_team = aliased(Team)
+    home_team = aliased(Team)
+
+    games = session.query(Game, away_team, home_team).join(
+        away_team, Game.away_team_id == away_team.id
+    ).join(
+        home_team, Game.home_team_id == home_team.id
+    ).filter(
+        Game.game_date >= start_utc,
+        Game.game_date < end_utc
+    ).order_by(Game.game_date).all()
+
+    if not games:
+        return jsonify({'games': [], 'day_total': 0, 'day_record': '0-0'})
+
+    # Calculate profit for each game
+    game_results = []
+    day_total_profit = 0
+    day_wins = 0
+    day_losses = 0
+
+    for game, away, home in games:
+        # Get plays for this game
+        plays = session.query(Play).join(
+            PropLine, Play.prop_line_id == PropLine.id
+        ).filter(
+            PropLine.game_id == game.id,
+            Play.recommendation != 'NO PLAY'
+        ).all()
+
+        game_profit = 0
+        game_wins = 0
+        game_losses = 0
+        over_count = 0
+        under_count = 0
+
+        for play in plays:
+            if play.recommendation == 'OVER':
+                over_count += 1
+            else:
+                under_count += 1
+
+            if play.was_correct == True:
+                game_wins += 1
+                day_wins += 1
+                odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+                if odds and odds < 0:
+                    game_profit += bet_amount * (100 / abs(odds))
+                elif odds and odds > 0:
+                    game_profit += bet_amount * (odds / 100)
+                else:
+                    game_profit += bet_amount
+            elif play.was_correct == False:
+                game_losses += 1
+                day_losses += 1
+                game_profit -= bet_amount
+
+        day_total_profit += game_profit
+
+        game_results.append({
+            'id': game.id,
+            'matchup': f"{away.abbreviation} @ {home.abbreviation}",
+            'away_abbr': away.abbreviation,
+            'home_abbr': home.abbreviation,
+            'game_time': utc_to_local(game.game_date).strftime('%I:%M %p'),
+            'is_completed': game.is_completed,
+            'total_plays': len(plays),
+            'over_count': over_count,
+            'under_count': under_count,
+            'wins': game_wins,
+            'losses': game_losses,
+            'profit': round(game_profit, 2)
+        })
+
+    return jsonify({
+        'date': date_str,
+        'games': game_results,
+        'day_total': round(day_total_profit, 2),
+        'day_record': f"{day_wins}-{day_losses}"
+    })
+
+
 @app.route('/api/game-analysis/<int:game_id>')
 def api_game_analysis(game_id):
     """API endpoint to get player prop analysis for a specific game"""

@@ -574,6 +574,165 @@ new Chart(ctx, {
     </table>
 </div>
 
+<!-- DAILY BREAKDOWN -->
+<h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Daily Breakdown</h2>
+<div class="card">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+        <span style="font-size: 1.5rem;">📅</span>
+        <div>
+            <h3 style="margin: 0;">Breakdown by Day</h3>
+            <p style="margin: 0.25rem 0 0 0; color: var(--text-dim); font-size: 0.85rem;">See P/L for each game on a selected day</p>
+        </div>
+    </div>
+
+    <!-- Date Selection -->
+    <div style="margin-bottom: 1.5rem;">
+        <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Select Date</label>
+        <input type="date" id="daily-breakdown-date" onchange="loadDailyBreakdown()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
+    </div>
+
+    <!-- Day Summary -->
+    <div id="daily-breakdown-summary" style="display: none; margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Day Record</span>
+                <div id="daily-breakdown-record" style="font-size: 1.5rem; font-weight: 700;"></div>
+            </div>
+            <div style="text-align: right;">
+                <span style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Day Total</span>
+                <div id="daily-breakdown-total" style="font-size: 1.5rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Cards Grid -->
+    <div id="daily-breakdown-games" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+    </div>
+
+    <!-- Empty State -->
+    <div id="daily-breakdown-empty" style="text-align: center; padding: 2rem; color: var(--text-dim);">
+        <p>Select a date above to see game-by-game breakdown</p>
+    </div>
+
+    <!-- Loading State -->
+    <div id="daily-breakdown-loading" style="display: none; text-align: center; padding: 2rem;">
+        <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--accent-green); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    </div>
+</div>
+
+<script>
+async function loadDailyBreakdown() {
+    const dateInput = document.getElementById('daily-breakdown-date');
+    const summaryDiv = document.getElementById('daily-breakdown-summary');
+    const gamesDiv = document.getElementById('daily-breakdown-games');
+    const emptyDiv = document.getElementById('daily-breakdown-empty');
+    const loadingDiv = document.getElementById('daily-breakdown-loading');
+
+    if (!dateInput.value) {
+        summaryDiv.style.display = 'none';
+        gamesDiv.innerHTML = '';
+        emptyDiv.style.display = 'block';
+        return;
+    }
+
+    emptyDiv.style.display = 'none';
+    loadingDiv.style.display = 'block';
+    summaryDiv.style.display = 'none';
+    gamesDiv.innerHTML = '';
+
+    try {
+        const response = await fetch(`/api/daily-breakdown?date=${dateInput.value}`);
+        const data = await response.json();
+
+        loadingDiv.style.display = 'none';
+
+        if (!data.games || data.games.length === 0) {
+            emptyDiv.innerHTML = '<p>No games found for this date</p>';
+            emptyDiv.style.display = 'block';
+            return;
+        }
+
+        // Update summary
+        document.getElementById('daily-breakdown-record').textContent = data.day_record;
+        const totalEl = document.getElementById('daily-breakdown-total');
+        totalEl.textContent = `${data.day_total >= 0 ? '+' : ''}$${data.day_total.toFixed(2)}`;
+        totalEl.style.color = data.day_total >= 0 ? 'var(--success)' : 'var(--danger)';
+        summaryDiv.style.display = 'block';
+
+        // Build game cards
+        data.games.forEach(game => {
+            const profitColor = game.profit >= 0 ? 'var(--success)' : 'var(--danger)';
+            const borderColor = game.profit > 0 ? 'var(--success)' : (game.profit < 0 ? 'var(--danger)' : 'var(--border)');
+            const bgGradient = game.profit > 0
+                ? 'linear-gradient(135deg, rgba(0, 255, 136, 0.05), rgba(0, 255, 136, 0.02))'
+                : (game.profit < 0
+                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05), rgba(239, 68, 68, 0.02))'
+                    : 'var(--bg-secondary)');
+
+            const card = document.createElement('div');
+            card.style.cssText = `
+                background: ${bgGradient};
+                border: 1px solid ${borderColor};
+                border-radius: 10px;
+                padding: 1rem;
+                text-align: center;
+                transition: transform 0.2s, box-shadow 0.2s;
+                cursor: pointer;
+            `;
+            card.onmouseover = () => {
+                card.style.transform = 'translateY(-2px)';
+                card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+            };
+            card.onmouseout = () => {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+            };
+            card.onclick = () => {
+                // Set the game analysis date and select, then load
+                document.getElementById('game-analysis-date').value = dateInput.value;
+                loadGamesForDate().then(() => {
+                    document.getElementById('game-analysis-select').value = game.id;
+                    loadGameAnalysis();
+                    // Scroll to game analysis section
+                    document.getElementById('game-analysis-select').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                });
+            };
+
+            card.innerHTML = `
+                <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem;">${game.matchup}</div>
+                <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.75rem;">${game.game_time}</div>
+                <div style="font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: ${profitColor}; margin-bottom: 0.5rem;">
+                    ${game.profit >= 0 ? '+' : ''}$${game.profit.toFixed(2)}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                    ${game.wins}-${game.losses} <span style="color: var(--text-dim);">|</span> ${game.total_plays} plays
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-dim); margin-top: 0.25rem;">
+                    ${game.over_count}O / ${game.under_count}U
+                </div>
+            `;
+
+            gamesDiv.appendChild(card);
+        });
+
+    } catch (error) {
+        console.error('Error loading daily breakdown:', error);
+        loadingDiv.style.display = 'none';
+        emptyDiv.innerHTML = `<p style="color: var(--danger);">Error loading data</p>`;
+        emptyDiv.style.display = 'block';
+    }
+}
+
+// Set default date to yesterday for daily breakdown
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('daily-breakdown-date');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    dateInput.value = yesterday.toISOString().split('T')[0];
+    loadDailyBreakdown();
+});
+</script>
+
 <!-- GAME ANALYSIS -->
 <h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Game Analysis</h2>
 <div class="card">
