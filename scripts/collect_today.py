@@ -17,6 +17,7 @@ from database.db import init_db, get_session, close_session
 from database.models import Team, Player, Game, PropLine
 from services.nba_api import NBAApiClient
 from services.odds_api import OddsApiClient
+from services.player_name_map import normalize_player_name
 from datetime import datetime
 
 
@@ -83,19 +84,26 @@ def collect_todays_games_and_props():
 
     # Store props
     props_stored = 0
+    unmatched_players = set()
 
     for prop_data in all_props:
-        # Find player by name
-        player = session.query(Player).filter_by(full_name=prop_data['player_name']).first()
+        # Normalize player name using our mapping
+        original_name = prop_data['player_name']
+        normalized_name = normalize_player_name(original_name)
+
+        # Find player by normalized name
+        player = session.query(Player).filter_by(full_name=normalized_name).first()
 
         if not player:
             # Try to find by partial match
             player = session.query(Player).filter(
-                Player.full_name.like(f"%{prop_data['player_name']}%")
+                Player.full_name.like(f"%{normalized_name}%")
             ).first()
 
         if not player:
-            print(f"[WARNING] Player not found: {prop_data['player_name']}")
+            # Track unmatched players (only once per name)
+            if original_name not in unmatched_players:
+                unmatched_players.add(original_name)
             continue
 
         # For now, create a simple game record (we can enhance this later)
@@ -171,6 +179,13 @@ def collect_todays_games_and_props():
 
     session.commit()
     print(f"\n[OK] Stored {props_stored} prop lines")
+
+    # Report unmatched players
+    if unmatched_players:
+        print(f"\n[WARNING] {len(unmatched_players)} unmatched player(s):")
+        for name in sorted(unmatched_players):
+            print(f"  - {name}")
+        print("\nTo fix: Run 'python scripts/find_player_mismatches.py' and add mappings to services/player_name_map.py")
 
     close_session()
 

@@ -22,6 +22,7 @@ from database.db import get_session
 from database.models import Player, PropLine, Play
 from services.odds_api import OddsApiClient
 from services.nba_api import NBAApiClient
+from services.player_name_map import normalize_player_name, get_all_mappings
 
 
 def similarity_score(a, b):
@@ -61,6 +62,10 @@ def main():
 
     print(f"NBA Players in database: {len(nba_player_names)}")
 
+    # Show current mappings
+    current_mappings = get_all_mappings()
+    print(f"Current name mappings: {len(current_mappings)}")
+
     # Get all unique player names from PropLines that didn't match
     # These are stored in the Play table with player_name
     plays = session.query(Play).all()
@@ -92,8 +97,15 @@ def main():
 
     mismatches = []
     exact_matches = []
+    already_mapped = []
 
     for name in sorted(all_odds_names):
+        # Check if already in our mapping
+        normalized = normalize_player_name(name)
+        if normalized != name and normalized in nba_player_names:
+            already_mapped.append({'odds_name': name, 'nba_name': normalized})
+            continue
+
         # Check exact match (case insensitive)
         if name.lower() in nba_player_names_lower:
             exact_matches.append(name)
@@ -101,6 +113,11 @@ def main():
 
         # Check if exactly in NBA names
         if name in nba_player_names:
+            exact_matches.append(name)
+            continue
+
+        # Check if normalized name matches
+        if normalized.lower() in nba_player_names_lower:
             exact_matches.append(name)
             continue
 
@@ -113,8 +130,17 @@ def main():
         })
 
     print(f"Exact matches: {len(exact_matches)}")
-    print(f"Mismatches: {len(mismatches)}")
+    print(f"Already mapped: {len(already_mapped)}")
+    print(f"NEW mismatches: {len(mismatches)}")
     print()
+
+    if already_mapped:
+        print("Currently mapped players (working correctly):")
+        for m in already_mapped[:5]:  # Show first 5
+            print(f"  ✓ '{m['odds_name']}' -> '{m['nba_name']}'")
+        if len(already_mapped) > 5:
+            print(f"  ... and {len(already_mapped) - 5} more")
+        print()
 
     if mismatches:
         print("-" * 70)
@@ -173,14 +199,20 @@ def main():
     print("=" * 70)
     print("STATS SUMMARY")
     print("=" * 70)
-    print(f"Total unique names from Odds API: {len(all_odds_names)}")
-    print(f"Exact matches: {len(exact_matches)} ({len(exact_matches)/len(all_odds_names)*100:.1f}%)")
-    print(f"Mismatches: {len(mismatches)} ({len(mismatches)/len(all_odds_names)*100:.1f}%)")
+    total_names = len(all_odds_names)
+    matched = len(exact_matches) + len(already_mapped)
+    print(f"Total unique names from Odds API: {total_names}")
+    print(f"Successfully matched: {matched} ({matched/total_names*100:.1f}%)")
+    print(f"  - Exact matches: {len(exact_matches)}")
+    print(f"  - Via name mapping: {len(already_mapped)}")
+    print(f"NEW mismatches needing attention: {len(mismatches)} ({len(mismatches)/total_names*100:.1f}%)")
 
     if mismatches:
         high_conf_count = len([m for m in mismatches if m['similarity'] >= 0.85])
-        print(f"  - High confidence fixes: {high_conf_count}")
+        print(f"  - High confidence (easy fixes): {high_conf_count}")
         print(f"  - Needs manual review: {len(mismatches) - high_conf_count}")
+    else:
+        print("\n✓ All player names are matched! No action needed.")
 
 
 if __name__ == "__main__":
