@@ -34,11 +34,11 @@
             <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
                 <div>
                     <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Status</label>
-                    <select name="game_status" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 110px;">
-                        <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active</option>
-                        <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming</option>
-                        <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live</option>
-                        <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All</option>
+                    <select name="game_status" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 130px;">
+                        <option value="active" {% if game_status_filter == 'active' %}selected{% endif %}>Active + Live</option>
+                        <option value="upcoming" {% if game_status_filter == 'upcoming' %}selected{% endif %}>Upcoming Only</option>
+                        <option value="live" {% if game_status_filter == 'live' %}selected{% endif %}>Live Only</option>
+                        <option value="all" {% if game_status_filter == 'all' %}selected{% endif %}>All (incl. past)</option>
                     </select>
                 </div>
 

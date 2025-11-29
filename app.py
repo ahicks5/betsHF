@@ -77,7 +77,7 @@ def upcoming_plays():
     confidence_filter = request.args.get('confidence', 'all')
     stat_filter = request.args.get('stat', 'all')
     recommendation_filter = request.args.get('recommendation', 'all')
-    game_status_filter = request.args.get('game_status', 'upcoming')  # Default to 'upcoming' to show all future games
+    game_status_filter = request.args.get('game_status', 'active')  # Default to 'active' to show upcoming + live games
 
     if confidence_filter != 'all':
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games if p.confidence == confidence_filter]
@@ -90,20 +90,21 @@ def upcoming_plays():
 
     # Filter by game status
     now = get_local_now()
-    four_hours_ago = now - timedelta(hours=4)
+    # NBA games typically last ~2.5 hours, use 3.5 hour window to be safe
+    live_game_window = now - timedelta(hours=3, minutes=30)
 
     if game_status_filter == 'active':
-        # Default: show only upcoming and live games (not completed or old)
-        # Exclude completed games OR games that started more than 4 hours ago
+        # Default: show upcoming games AND currently live games (started within 3.5 hours, not completed)
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games
-                          if not g.is_completed and utc_to_local(g.game_date) >= four_hours_ago]
+                          if not g.is_completed and utc_to_local(g.game_date) >= live_game_window]
     elif game_status_filter == 'upcoming':
+        # Only games that haven't started yet
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games
                           if not g.is_completed and utc_to_local(g.game_date) > now]
     elif game_status_filter == 'live':
-        # Games started in last 4 hours and not completed
+        # Games currently in progress (started within window, not completed, start time has passed)
         plays_with_games = [(p, g, m) for p, g, m in plays_with_games
-                          if not g.is_completed and four_hours_ago <= utc_to_local(g.game_date) <= now]
+                          if not g.is_completed and live_game_window <= utc_to_local(g.game_date) <= now]
     # 'all' - no filtering
 
     # Get unique values for filters (from original plays)
@@ -659,6 +660,68 @@ def stats():
     total_winnings = sum(win_amounts)
     total_losses = sum(loss_amounts)
 
+    # ===== WINNING FORMULA ANALYSIS =====
+    # Find the most profitable combinations of factors
+
+    # Best direction
+    best_direction = 'OVER' if over_profit > under_profit else 'UNDER'
+    best_direction_profit = max(over_profit, under_profit)
+    best_direction_win_rate = over_win_rate if best_direction == 'OVER' else under_win_rate
+
+    # Best confidence level
+    best_confidence = max(profit_by_conf.items(), key=lambda x: x[1])[0] if profit_by_conf and any(v != 0 for v in profit_by_conf.values()) else None
+    best_confidence_profit = profit_by_conf.get(best_confidence, 0) if best_confidence else 0
+    best_confidence_win_rate = win_rate_by_conf.get(best_confidence, {}).get('rate', 0) if best_confidence else 0
+
+    # Best stat type
+    best_stat = max(profit_by_stat.items(), key=lambda x: x[1])[0] if profit_by_stat and any(v != 0 for v in profit_by_stat.values()) else None
+    best_stat_profit = profit_by_stat.get(best_stat, 0) if best_stat else 0
+    best_stat_win_rate = win_rate_by_stat.get(best_stat, {}).get('rate', 0) if best_stat else 0
+
+    # Best z-score range
+    best_z_range = max(profit_by_z_score_range.items(), key=lambda x: x[1])[0] if profit_by_z_score_range and any(v != 0 for v in profit_by_z_score_range.values()) else None
+    best_z_profit = profit_by_z_score_range.get(best_z_range, 0) if best_z_range else 0
+    best_z_win_rate = z_score_performance.get(best_z_range, {}).get('win_rate', 0) if best_z_range else 0
+
+    # Best bookmaker
+    best_bookie = max(bookmaker_stats.items(), key=lambda x: x[1]['profit'])[0] if bookmaker_stats and any(v['profit'] != 0 for v in bookmaker_stats.values()) else None
+    best_bookie_profit = bookmaker_stats.get(best_bookie, {}).get('profit', 0) if best_bookie else 0
+    best_bookie_win_rate = bookmaker_stats.get(best_bookie, {}).get('win_rate', 0) if best_bookie else 0
+
+    # Package winning formula data
+    winning_formula = {
+        'direction': {
+            'value': best_direction,
+            'profit': best_direction_profit,
+            'win_rate': best_direction_win_rate,
+            'has_data': over_profit != 0 or under_profit != 0
+        },
+        'confidence': {
+            'value': best_confidence,
+            'profit': best_confidence_profit,
+            'win_rate': best_confidence_win_rate,
+            'has_data': best_confidence is not None
+        },
+        'stat': {
+            'value': best_stat,
+            'profit': best_stat_profit,
+            'win_rate': best_stat_win_rate,
+            'has_data': best_stat is not None
+        },
+        'z_range': {
+            'value': best_z_range,
+            'profit': best_z_profit,
+            'win_rate': best_z_win_rate,
+            'has_data': best_z_range is not None
+        },
+        'bookmaker': {
+            'value': best_bookie,
+            'profit': best_bookie_profit,
+            'win_rate': best_bookie_win_rate,
+            'has_data': best_bookie is not None
+        }
+    }
+
     return render_template('stats.html',
                          total_plays=total_plays,
                          high_confidence=high_confidence,
@@ -703,7 +766,9 @@ def stats():
                          avg_win_amount=avg_win_amount,
                          avg_loss_amount=avg_loss_amount,
                          total_winnings=total_winnings,
-                         total_losses=total_losses)
+                         total_losses=total_losses,
+                         # Winning formula
+                         winning_formula=winning_formula)
 
 
 def get_game_status(game, now=None):

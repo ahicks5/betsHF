@@ -38,6 +38,101 @@
 
 {% if total_graded > 0 %}
 
+<!-- WINNING FORMULA -->
+<div class="card" style="margin-top: 2rem; background: linear-gradient(135deg, rgba(0, 255, 136, 0.05), rgba(0, 136, 255, 0.05)); border: 1px solid rgba(0, 255, 136, 0.2);">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+        <span style="font-size: 1.5rem;">🎯</span>
+        <div>
+            <h3 style="margin: 0;">Winning Formula</h3>
+            <p style="margin: 0.25rem 0 0 0; color: var(--text-dim); font-size: 0.85rem;">Most profitable patterns in our model</p>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+        {% if winning_formula.direction.has_data %}
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Direction</div>
+            <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0; color: {% if winning_formula.direction.value == 'OVER' %}var(--success){% else %}var(--accent-blue){% endif %};">
+                {{ winning_formula.direction.value }}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                <span style="color: var(--success);">+${{ winning_formula.direction.profit|format_float(2) }}</span>
+                <span style="color: var(--text-dim);">|</span>
+                {{ winning_formula.direction.win_rate|format_float(0) }}%
+            </div>
+        </div>
+        {% endif %}
+
+        {% if winning_formula.confidence.has_data %}
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Confidence</div>
+            <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0; color: {% if winning_formula.confidence.value == 'High' %}var(--danger){% else %}var(--warning){% endif %};">
+                {{ winning_formula.confidence.value }}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                <span style="color: var(--success);">+${{ winning_formula.confidence.profit|format_float(2) }}</span>
+                <span style="color: var(--text-dim);">|</span>
+                {{ winning_formula.confidence.win_rate|format_float(0) }}%
+            </div>
+        </div>
+        {% endif %}
+
+        {% if winning_formula.stat.has_data %}
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Stat Type</div>
+            <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0; color: var(--accent-green);">
+                {{ winning_formula.stat.value }}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                <span style="color: var(--success);">+${{ winning_formula.stat.profit|format_float(2) }}</span>
+                <span style="color: var(--text-dim);">|</span>
+                {{ winning_formula.stat.win_rate|format_float(0) }}%
+            </div>
+        </div>
+        {% endif %}
+
+        {% if winning_formula.z_range.has_data %}
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Signal Strength</div>
+            <div style="font-size: 1.4rem; font-weight: 700; margin: 0.5rem 0; color: var(--accent-purple);">
+                {{ winning_formula.z_range.value }}σ
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                <span style="color: var(--success);">+${{ winning_formula.z_range.profit|format_float(2) }}</span>
+                <span style="color: var(--text-dim);">|</span>
+                {{ winning_formula.z_range.win_rate|format_float(0) }}%
+            </div>
+        </div>
+        {% endif %}
+
+        {% if winning_formula.bookmaker.has_data %}
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Bookmaker</div>
+            <div style="font-size: 1.1rem; font-weight: 700; margin: 0.5rem 0; color: var(--text-primary);">
+                {{ winning_formula.bookmaker.value|title|replace('_', ' ') }}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                <span style="color: var(--success);">+${{ winning_formula.bookmaker.profit|format_float(2) }}</span>
+                <span style="color: var(--text-dim);">|</span>
+                {{ winning_formula.bookmaker.win_rate|format_float(0) }}%
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-dim);">
+            <strong style="color: var(--accent-green);">Optimal Play:</strong>
+            {% if winning_formula.confidence.has_data and winning_formula.stat.has_data and winning_formula.direction.has_data %}
+            {{ winning_formula.confidence.value }} confidence {{ winning_formula.direction.value }} bets on {{ winning_formula.stat.value }}
+            {% if winning_formula.z_range.has_data %} with {{ winning_formula.z_range.value }}σ signals{% endif %}
+            {% else %}
+            Collecting more data to identify patterns...
+            {% endif %}
+        </p>
+    </div>
+</div>
+
 <!-- ODDS ANALYSIS -->
 <h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Odds Analysis</h2>
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
@@ -311,11 +406,11 @@
     <!-- Summary Stats Row -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
         <div style="text-align: center;">
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Starting</div>
-            <div style="font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">$0.00</div>
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Unit Size</div>
+            <div style="font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">$10</div>
         </div>
         <div style="text-align: center;">
-            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Current</div>
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Current P/L</div>
             <div style="font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: {% if total_profit > 0 %}var(--success){% else %}var(--danger){% endif %};">
                 {% if total_profit > 0 %}+{% endif %}${{ total_profit|format_float(2) }}
             </div>
@@ -335,7 +430,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-// Profit Over Time Chart - Aggregate by date for cleaner display
+// Profit Over Time Chart - Aggregate by date, start from $0
 const rawProfitData = {{ cumulative_profit_data|tojson }};
 
 // Aggregate to get one point per date (last value of each day)
@@ -344,40 +439,42 @@ rawProfitData.forEach(d => {
     dateMap.set(d.date, d.profit);
 });
 
-const aggregatedData = Array.from(dateMap.entries()).map(([date, profit]) => ({
-    date: date,
-    profit: profit
-})).sort((a, b) => new Date(a.date) - new Date(b.date));
+// Build data starting from $0
+let chartLabels = ['Start'];
+let chartData = [0];
 
-const dates = aggregatedData.map(d => {
-    // Format date nicely (e.g., "Nov 25")
-    const dateObj = new Date(d.date);
-    return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const sortedDates = Array.from(dateMap.entries())
+    .sort((a, b) => new Date(a[0]) - new Date(b[0]));
+
+sortedDates.forEach(([date, profit]) => {
+    const dateObj = new Date(date);
+    chartLabels.push(dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    chartData.push(profit);
 });
-const profits = aggregatedData.map(d => d.profit);
 
 const ctx = document.getElementById('profitChart').getContext('2d');
-const finalProfit = profits.length > 0 ? profits[profits.length - 1] : 0;
+const finalProfit = chartData.length > 1 ? chartData[chartData.length - 1] : 0;
 const lineColor = finalProfit >= 0 ? '#00ff88' : '#e74c3c';
-const bgColor = finalProfit >= 0 ? 'rgba(0, 255, 136, 0.1)' : 'rgba(231, 76, 60, 0.1)';
+const bgColor = finalProfit >= 0 ? 'rgba(0, 255, 136, 0.15)' : 'rgba(231, 76, 60, 0.15)';
 
 new Chart(ctx, {
     type: 'line',
     data: {
-        labels: dates,
+        labels: chartLabels,
         datasets: [{
             label: 'Cumulative Profit ($)',
-            data: profits,
+            data: chartData,
             borderColor: lineColor,
             backgroundColor: bgColor,
             borderWidth: 3,
             tension: 0.4,
             fill: true,
-            pointRadius: profits.length <= 10 ? 6 : (profits.length <= 20 ? 4 : 0),
+            pointRadius: 0,
             pointHoverRadius: 8,
             pointBackgroundColor: lineColor,
             pointBorderColor: '#1a1a2e',
             pointBorderWidth: 2,
+            pointHitRadius: 20,
         }]
     },
     options: {
@@ -406,7 +503,7 @@ new Chart(ctx, {
                     label: function(context) {
                         let value = context.parsed.y;
                         let prefix = value >= 0 ? '+' : '';
-                        return prefix + '$' + value.toFixed(2);
+                        return 'Profit: ' + prefix + '$' + value.toFixed(2);
                     }
                 }
             }
@@ -432,7 +529,9 @@ new Chart(ctx, {
                 },
                 grid: {
                     color: 'rgba(255, 255, 255, 0.05)'
-                }
+                },
+                suggestedMin: Math.min(0, ...chartData) - 5,
+                suggestedMax: Math.max(0, ...chartData) + 5
             }
         }
     }
