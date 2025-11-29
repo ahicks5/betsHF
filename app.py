@@ -9,8 +9,12 @@ from sqlalchemy import func, desc
 from sqlalchemy.orm import aliased
 from datetime import datetime, timedelta
 import pytz
+from services.betting_models import get_model_config, get_all_models, DEFAULT_MODEL
 
 app = Flask(__name__)
+
+# Default model for filtering
+DEFAULT_MODEL_ID = DEFAULT_MODEL
 
 # Timezone configuration - change this to your local timezone
 LOCAL_TIMEZONE = pytz.timezone('America/Chicago')  # Central Time
@@ -43,6 +47,10 @@ def upcoming_plays():
     """Show upcoming plays (today + tomorrow)"""
     session = get_session()
 
+    # Get model filter from request
+    model_filter = request.args.get('model', DEFAULT_MODEL_ID)
+    model_config = get_model_config(model_filter)
+
     # Get upcoming plays with game info - join with PropLine, Game, and Teams
     # Use aliases for Team table since we join it twice (away and home)
     away_team = aliased(Team)
@@ -63,7 +71,8 @@ def upcoming_plays():
         home_team, Game.home_team_id == home_team.id
     ).filter(
         Play.created_at >= three_days_ago,  # Get recent plays
-        Play.recommendation != 'NO PLAY'  # Hide NO PLAY recommendations
+        Play.recommendation != 'NO PLAY',  # Hide NO PLAY recommendations
+        Play.model_name == model_filter  # Filter by selected model
     ).order_by(desc(func.abs(Play.z_score)))
 
     # Get all results - (play, game, away_team, home_team)
@@ -123,7 +132,9 @@ def upcoming_plays():
                          game_status_filter=game_status_filter,
                          all_stats=all_stats,
                          all_confidences=all_confidences,
-                         all_recommendations=all_recommendations)
+                         all_recommendations=all_recommendations,
+                         model_filter=model_filter,
+                         model_config=model_config)
 
 
 @app.route('/plays/history')
@@ -132,6 +143,10 @@ def plays_history():
     session = get_session()
 
     now_local = get_local_now()
+
+    # Get model filter from request
+    model_filter = request.args.get('model', DEFAULT_MODEL_ID)
+    model_config = get_model_config(model_filter)
 
     # Get filter parameters
     days_param = request.args.get('days', '')
@@ -184,6 +199,7 @@ def plays_history():
         home_team, Game.home_team_id == home_team.id
     ).filter(
         Play.recommendation != 'NO PLAY',  # Hide NO PLAY recommendations
+        Play.model_name == model_filter,  # Filter by selected model
         (Game.is_completed == True) | (Game.game_date < four_hours_ago)  # Game is done
     )
 
@@ -215,13 +231,14 @@ def plays_history():
         matchup = f"{away.abbreviation} @ {home.abbreviation}"
         all_plays.append((play, game, matchup))
 
-    # Get unique values for filter dropdowns (from all data, not just filtered)
+    # Get unique values for filter dropdowns (from all data for this model, not just filtered)
     all_results_for_filters = session.query(Play).join(
         PropLine, Play.prop_line_id == PropLine.id
     ).join(
         Game, PropLine.game_id == Game.id
     ).filter(
         Play.recommendation != 'NO PLAY',
+        Play.model_name == model_filter,
         (Game.is_completed == True) | (Game.game_date < four_hours_ago)
     ).all()
 
@@ -240,7 +257,9 @@ def plays_history():
                          outcome_filter=outcome_filter,
                          all_stats=all_stats,
                          all_confidences=all_confidences,
-                         all_recommendations=all_recommendations)
+                         all_recommendations=all_recommendations,
+                         model_filter=model_filter,
+                         model_config=model_config)
 
 
 @app.route('/plays/<int:play_id>')
@@ -271,8 +290,12 @@ def stats():
     """Show overall statistics including performance metrics"""
     session = get_session()
 
-    # Get all plays
-    all_plays = session.query(Play).all()
+    # Get model filter from request
+    model_filter = request.args.get('model', DEFAULT_MODEL_ID)
+    model_config = get_model_config(model_filter)
+
+    # Get all plays for the selected model
+    all_plays = session.query(Play).filter(Play.model_name == model_filter).all()
 
     # Calculate basic stats - exclude NO PLAY from total count
     actual_plays = [p for p in all_plays if p.recommendation != 'NO PLAY']
@@ -287,10 +310,13 @@ def stats():
     losses = len([p for p in graded_plays if p.was_correct == False])
     win_rate = (wins / total_graded * 100) if total_graded > 0 else 0
 
-    # Calculate profit/loss based on American odds ($10 bets)
-    bet_amount = 10
+    # Calculate profit/loss based on American odds
+    # Use the play's bet_amount (varies by model)
     total_profit = 0
+    total_wagered = 0
     for play in graded_plays:
+        bet_amount = play.bet_amount or base_bet_amount  # Use play's bet amount or default
+        total_wagered += bet_amount
         if play.was_correct == True:
             # Win
             odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
@@ -307,7 +333,7 @@ def stats():
             # Loss - lose the bet amount
             total_profit -= bet_amount
 
-    roi = (total_profit / (total_graded * bet_amount) * 100) if total_graded > 0 else 0
+    roi = (total_profit / total_wagered * 100) if total_wagered > 0 else 0
 
     # Win rate and profit by confidence
     win_rate_by_conf = {}
@@ -768,7 +794,10 @@ def stats():
                          total_winnings=total_winnings,
                          total_losses=total_losses,
                          # Winning formula
-                         winning_formula=winning_formula)
+                         winning_formula=winning_formula,
+                         # Model info
+                         model_filter=model_filter,
+                         model_config=model_config)
 
 
 def get_game_status(game, now=None):
@@ -884,19 +913,22 @@ def z_to_confidence(z_score):
 
 
 @app.template_filter('calculate_profit')
-def calculate_profit(play, bet_amount=10):
+def calculate_profit(play, default_bet_amount=10):
     """
     Calculate profit/loss for a play based on American odds
 
     Args:
-        play: Play object with recommendation, was_correct, over_odds, under_odds
-        bet_amount: Amount bet (default $10)
+        play: Play object with recommendation, was_correct, over_odds, under_odds, bet_amount
+        default_bet_amount: Default amount if play.bet_amount not set
 
     Returns:
         Formatted string showing profit/loss (e.g., "+$15.00" or "-$10.00")
     """
     if play.was_correct is None or play.recommendation == 'NO PLAY':
         return '-'
+
+    # Use play's bet_amount or default
+    bet_amount = play.bet_amount if play.bet_amount else default_bet_amount
 
     # Get the odds for the recommendation
     if play.recommendation == 'OVER':

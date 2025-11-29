@@ -3,8 +3,18 @@ Find Today's Best Plays
 
 Analyzes all collected props and shows recommendations
 Sorted by strongest deviation (highest z-score)
+
+Supports multiple betting models:
+- pulsar_v1: Original model (flat $10, z > 0.5 threshold)
+- sentinel_v1: Conservative model (variable sizing, UNDER restrictions)
+
+Usage:
+    python scripts/find_plays.py                    # Run all models
+    python scripts/find_plays.py --model pulsar_v1  # Run specific model
+    python scripts/find_plays.py --model sentinel_v1
 """
 import sys
+import argparse
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -13,6 +23,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from database.db import get_session, close_session
 from database.models import PropLine, Player, Game, Team, Play
 from cached_analyzer import CachedPropAnalyzer
+from services.betting_models import (
+    get_all_models, get_model_config, apply_model_rules,
+    DEFAULT_MODEL, MODELS
+)
 from tabulate import tabulate
 import csv
 from datetime import datetime
@@ -92,13 +106,21 @@ def export_detailed_csv(analyses, filename=None):
     return filename
 
 
-def save_plays_to_db(session, analyses_with_props):
-    """Save analyzed plays to the database"""
+def save_plays_to_db(session, analyses_with_props, model_id):
+    """Save analyzed plays to the database for a specific model"""
     saved_count = 0
+    skipped_count = 0
 
     for item in analyses_with_props:
         analysis = item['analysis']
         prop = item['prop']
+
+        # Apply model rules to determine if we should take this play
+        should_take, bet_amount, reason, confidence = apply_model_rules(model_id, analysis)
+
+        if not should_take:
+            skipped_count += 1
+            continue
 
         try:
             # Convert numpy types to Python native types for PostgreSQL compatibility
@@ -124,10 +146,12 @@ def save_plays_to_db(session, analyses_with_props):
                 z_score=to_python_type(analysis['z_score']),
                 games_played=int(analysis.get('games_played', 0)),
                 recommendation=analysis['recommendation'],
-                confidence=analysis['confidence'],
+                confidence=confidence,
                 bookmaker=analysis['bookmaker'],
                 over_odds=int(analysis.get('over_odds')) if analysis.get('over_odds') is not None else None,
-                under_odds=int(analysis.get('under_odds')) if analysis.get('under_odds') is not None else None
+                under_odds=int(analysis.get('under_odds')) if analysis.get('under_odds') is not None else None,
+                model_name=model_id,
+                bet_amount=bet_amount
             )
 
             session.add(play)
@@ -138,23 +162,39 @@ def save_plays_to_db(session, analyses_with_props):
             continue
 
     session.commit()
-    return saved_count
+    return saved_count, skipped_count
 
 
-def analyze_all_props():
-    """Analyze all latest props and display results"""
+def analyze_all_props(model_ids=None):
+    """
+    Analyze all latest props and display results
+
+    Args:
+        model_ids: List of model IDs to run, or None for all models
+    """
     session = get_session()
     analyzer = CachedPropAnalyzer()
 
-    print("=== Analyzing Today's Props ===\n")
+    # Determine which models to run
+    if model_ids is None:
+        model_ids = list(get_all_models().keys())
+    elif isinstance(model_ids, str):
+        model_ids = [model_ids]
 
-    # Clear out only UNGRADED plays to avoid duplicates
+    print("=== Analyzing Today's Props ===\n")
+    print(f"Running models: {', '.join(model_ids)}\n")
+
+    # Clear out only UNGRADED plays for the models we're running
     # Keep historical plays that have results (was_correct is not None)
-    ungraded_plays = session.query(Play).filter(Play.was_correct == None).all()
-    for play in ungraded_plays:
-        session.delete(play)
-    session.commit()
-    print(f"[OK] Cleared {len(ungraded_plays)} ungraded plays from database\n")
+    for model_id in model_ids:
+        ungraded_plays = session.query(Play).filter(
+            Play.was_correct == None,
+            Play.model_name == model_id
+        ).all()
+        for play in ungraded_plays:
+            session.delete(play)
+        session.commit()
+        print(f"[OK] Cleared {len(ungraded_plays)} ungraded {model_id} plays from database")
 
     # Get all latest props
     props = session.query(PropLine).filter_by(is_latest=True).all()
@@ -236,11 +276,21 @@ def analyze_all_props():
     all_analyses_with_props = list(player_stat_best_with_props.values())
     analyses = [a for a in all_analyses if a['recommendation'] != "NO PLAY"]
 
-    # Save all plays to database
-    saved_count = save_plays_to_db(session, all_analyses_with_props)
-    print(f"[OK] Saved {saved_count} plays to database")
-    print()
+    # Save plays to database FOR EACH MODEL
+    print("\n" + "=" * 60)
+    print("SAVING PLAYS BY MODEL")
+    print("=" * 60)
 
+    model_results = {}
+    for model_id in model_ids:
+        model_config = get_model_config(model_id)
+        saved_count, skipped_count = save_plays_to_db(session, all_analyses_with_props, model_id)
+        model_results[model_id] = {'saved': saved_count, 'skipped': skipped_count}
+        print(f"\n{model_config['icon']} {model_config['display_name']}:")
+        print(f"   Saved: {saved_count} plays")
+        print(f"   Filtered out: {skipped_count} plays")
+
+    print()
     close_session()
 
     # Print cache statistics
@@ -365,4 +415,28 @@ def analyze_all_props():
 
 
 if __name__ == "__main__":
-    analyze_all_props()
+    parser = argparse.ArgumentParser(description='Find today\'s best plays using betting models')
+    parser.add_argument('--model', '-m', type=str, default=None,
+                       help=f'Model to run. Options: {", ".join(MODELS.keys())}. Default: all models')
+    parser.add_argument('--list-models', action='store_true',
+                       help='List available models and exit')
+
+    args = parser.parse_args()
+
+    if args.list_models:
+        print("\nAvailable Betting Models:")
+        print("=" * 60)
+        for model_id, config in MODELS.items():
+            print(f"\n{config['icon']} {config['display_name']} ({model_id})")
+            print(f"   {config['description']}")
+        print()
+        sys.exit(0)
+
+    if args.model:
+        if args.model not in MODELS:
+            print(f"Error: Unknown model '{args.model}'")
+            print(f"Available models: {', '.join(MODELS.keys())}")
+            sys.exit(1)
+        analyze_all_props(model_ids=[args.model])
+    else:
+        analyze_all_props()

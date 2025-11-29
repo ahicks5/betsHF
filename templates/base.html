@@ -623,6 +623,16 @@
                 <a href="/" {% if request.path == '/' or request.path.startswith('/plays/today') or request.path.startswith('/plays/upcoming') %}class="active"{% endif %}>Upcoming</a>
                 <a href="/plays/history" {% if request.path.startswith('/plays/history') %}class="active"{% endif %}>History</a>
                 <a href="/stats" {% if request.path == '/stats' %}class="active"{% endif %}>Stats</a>
+
+                <!-- Model Switcher -->
+                <div class="model-switcher" style="margin-left: auto; display: flex; gap: 0.4rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.25rem; border: 1px solid var(--border);">
+                    <button onclick="setModel('pulsar_v1')" id="model-btn-pulsar_v1" class="model-btn active" data-model="pulsar_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 0.3rem;">
+                        <span>⚡</span> Pulsar
+                    </button>
+                    <button onclick="setModel('sentinel_v1')" id="model-btn-sentinel_v1" class="model-btn" data-model="sentinel_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 0.3rem;">
+                        <span>🛡️</span> Sentinel
+                    </button>
+                </div>
             </nav>
         </div>
     </header>
@@ -630,5 +640,98 @@
     <div class="container">
         {% block content %}{% endblock %}
     </div>
+
+    <style>
+        /* Model Switcher Styles */
+        .model-btn {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .model-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .model-btn.active[data-model="pulsar_v1"] {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.1));
+            color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+        }
+
+        .model-btn.active[data-model="sentinel_v1"] {
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(167, 139, 250, 0.1));
+            color: #a78bfa;
+            box-shadow: 0 0 10px rgba(167, 139, 250, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .model-switcher {
+                margin-left: 0 !important;
+                margin-top: 0.5rem;
+            }
+
+            .model-btn {
+                padding: 0.35rem 0.6rem !important;
+                font-size: 0.7rem !important;
+            }
+
+            .model-btn span {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+
+    <script>
+        // Model Switcher Logic
+        const MODELS = {
+            'pulsar_v1': { name: 'Pulsar 1.0', color: '#00ff88', icon: '⚡' },
+            'sentinel_v1': { name: 'Sentinel 1.0', color: '#a78bfa', icon: '🛡️' }
+        };
+
+        function getCurrentModel() {
+            return localStorage.getItem('selectedModel') || 'pulsar_v1';
+        }
+
+        function setModel(modelId) {
+            localStorage.setItem('selectedModel', modelId);
+            updateModelButtons();
+
+            // Reload page with model parameter
+            const url = new URL(window.location.href);
+            url.searchParams.set('model', modelId);
+            window.location.href = url.toString();
+        }
+
+        function updateModelButtons() {
+            const currentModel = getCurrentModel();
+            document.querySelectorAll('.model-btn').forEach(btn => {
+                if (btn.dataset.model === currentModel) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check URL for model param and sync with localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlModel = urlParams.get('model');
+
+            if (urlModel && MODELS[urlModel]) {
+                localStorage.setItem('selectedModel', urlModel);
+            } else if (!urlParams.has('model')) {
+                // No model in URL - add it and reload
+                const currentModel = getCurrentModel();
+                const url = new URL(window.location.href);
+                url.searchParams.set('model', currentModel);
+                window.history.replaceState({}, '', url.toString());
+            }
+
+            updateModelButtons();
+        });
+    </script>
 </body>
 </html>

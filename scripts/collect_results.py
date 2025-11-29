@@ -230,13 +230,26 @@ def collect_results_for_date(target_date=None, days_back=1):
     print(f"Errors: {error_count}")
 
     if updated_count > 0:
-        # Show win rate for the graded plays
+        # Show win rate for the graded plays BY MODEL
         graded_plays = [p for p in plays if p.was_correct is not None]
         if graded_plays:
-            wins = len([p for p in graded_plays if p.was_correct == True])
-            total_graded = len(graded_plays)
-            win_rate = (wins / total_graded * 100) if total_graded > 0 else 0
-            print(f"\nWin Rate: {wins}/{total_graded} ({win_rate:.1f}%)")
+            print(f"\n=== Results by Model ===")
+
+            # Group by model
+            model_results = {}
+            for p in graded_plays:
+                model = p.model_name or 'pulsar_v1'  # Default for old plays
+                if model not in model_results:
+                    model_results[model] = {'wins': 0, 'losses': 0, 'total': 0}
+                model_results[model]['total'] += 1
+                if p.was_correct:
+                    model_results[model]['wins'] += 1
+                else:
+                    model_results[model]['losses'] += 1
+
+            for model, stats in model_results.items():
+                win_rate = (stats['wins'] / stats['total'] * 100) if stats['total'] > 0 else 0
+                print(f"{model}: {stats['wins']}/{stats['total']} ({win_rate:.1f}%)")
 
     close_session()
 

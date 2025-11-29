@@ -101,6 +101,10 @@ class Play(Base):
     over_odds = Column(Integer, nullable=True)
     under_odds = Column(Integer, nullable=True)
 
+    # Model identification
+    model_name = Column(String(50), nullable=False, default='pulsar_v1')  # pulsar_v1, sentinel_v1, etc.
+    bet_amount = Column(Float, nullable=True, default=10.0)  # Variable bet sizing for different models
+
     # Tracking
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
