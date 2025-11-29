@@ -130,21 +130,50 @@ def plays_history():
     """Show completed games with results"""
     session = get_session()
 
-    # Get date range
-    days = int(request.args.get('days', 7))
     now_local = get_local_now()
-    cutoff_date = now_local - timedelta(days=days)
-    cutoff_utc = cutoff_date.astimezone(pytz.utc).replace(tzinfo=None)
+
+    # Get filter parameters
+    days_param = request.args.get('days', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    confidence_filter = request.args.get('confidence', 'all')
+    stat_filter = request.args.get('stat', 'all')
+    recommendation_filter = request.args.get('recommendation', 'all')
+    outcome_filter = request.args.get('outcome', 'all')
+
+    # Determine date range
+    if days_param:
+        days = int(days_param)
+        cutoff_date = now_local - timedelta(days=days)
+        cutoff_utc = cutoff_date.astimezone(pytz.utc).replace(tzinfo=None)
+        end_utc = None  # No end limit when using days
+    elif date_from or date_to:
+        days = None
+        if date_from:
+            from_date = datetime.strptime(date_from, '%Y-%m-%d')
+            cutoff_utc = LOCAL_TIMEZONE.localize(from_date).astimezone(pytz.utc).replace(tzinfo=None)
+        else:
+            cutoff_utc = None
+        if date_to:
+            to_date = datetime.strptime(date_to, '%Y-%m-%d') + timedelta(days=1)  # Include the entire day
+            end_utc = LOCAL_TIMEZONE.localize(to_date).astimezone(pytz.utc).replace(tzinfo=None)
+        else:
+            end_utc = None
+    else:
+        # Default to last 7 days
+        days = 7
+        cutoff_date = now_local - timedelta(days=days)
+        cutoff_utc = cutoff_date.astimezone(pytz.utc).replace(tzinfo=None)
+        end_utc = None
 
     # Get plays where the game is completed OR started more than 4 hours ago
     four_hours_ago = (now_local - timedelta(hours=4)).astimezone(pytz.utc).replace(tzinfo=None)
 
-    # Join with PropLine, Game, and Teams to get full info (like today_plays)
-    from database.models import PropLine
+    # Join with PropLine, Game, and Teams to get full info
     away_team = aliased(Team)
     home_team = aliased(Team)
 
-    results = session.query(Play, Game, away_team, home_team).join(
+    query = session.query(Play, Game, away_team, home_team).join(
         PropLine, Play.prop_line_id == PropLine.id
     ).join(
         Game, PropLine.game_id == Game.id
@@ -153,26 +182,64 @@ def plays_history():
     ).join(
         home_team, Game.home_team_id == home_team.id
     ).filter(
-        Play.created_at >= cutoff_utc,  # Within date range
         Play.recommendation != 'NO PLAY',  # Hide NO PLAY recommendations
         (Game.is_completed == True) | (Game.game_date < four_hours_ago)  # Game is done
-    ).order_by(desc(Play.created_at), desc(func.abs(Play.z_score))).all()
+    )
 
-    # Group by date (convert to local timezone first)
-    # Store as (play, game, matchup) tuples like today_plays
-    plays_by_date = {}
+    # Apply date filters
+    if cutoff_utc:
+        query = query.filter(Play.created_at >= cutoff_utc)
+    if end_utc:
+        query = query.filter(Play.created_at < end_utc)
+
+    # Apply other filters at database level
+    if confidence_filter != 'all':
+        query = query.filter(Play.confidence == confidence_filter)
+    if stat_filter != 'all':
+        query = query.filter(Play.stat_type == stat_filter)
+    if recommendation_filter != 'all':
+        query = query.filter(Play.recommendation == recommendation_filter)
+    if outcome_filter == 'win':
+        query = query.filter(Play.was_correct == True)
+    elif outcome_filter == 'loss':
+        query = query.filter(Play.was_correct == False)
+    elif outcome_filter == 'pending':
+        query = query.filter(Play.was_correct == None)
+
+    results = query.order_by(desc(Game.game_date), desc(func.abs(Play.z_score))).all()
+
+    # Create flat list of (play, game, matchup) tuples
+    all_plays = []
     for play, game, away, home in results:
-        # Convert UTC to local timezone before extracting date
-        local_dt = utc_to_local(play.created_at)
-        date = local_dt.date()
-        if date not in plays_by_date:
-            plays_by_date[date] = []
         matchup = f"{away.abbreviation} @ {home.abbreviation}"
-        plays_by_date[date].append((play, game, matchup))
+        all_plays.append((play, game, matchup))
+
+    # Get unique values for filter dropdowns (from all data, not just filtered)
+    all_results_for_filters = session.query(Play).join(
+        PropLine, Play.prop_line_id == PropLine.id
+    ).join(
+        Game, PropLine.game_id == Game.id
+    ).filter(
+        Play.recommendation != 'NO PLAY',
+        (Game.is_completed == True) | (Game.game_date < four_hours_ago)
+    ).all()
+
+    all_stats = sorted(set(p.stat_type for p in all_results_for_filters if p.stat_type))
+    all_confidences = sorted(set(p.confidence for p in all_results_for_filters if p.confidence))
+    all_recommendations = sorted(set(p.recommendation for p in all_results_for_filters if p.recommendation))
 
     return render_template('history.html',
-                         plays_by_date=plays_by_date,
-                         days=days)
+                         all_plays=all_plays,
+                         days=days,
+                         date_from=date_from,
+                         date_to=date_to,
+                         confidence_filter=confidence_filter,
+                         stat_filter=stat_filter,
+                         recommendation_filter=recommendation_filter,
+                         outcome_filter=outcome_filter,
+                         all_stats=all_stats,
+                         all_confidences=all_confidences,
+                         all_recommendations=all_recommendations)
 
 
 @app.route('/plays/<int:play_id>')

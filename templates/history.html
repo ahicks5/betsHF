@@ -14,51 +14,125 @@
 
 <!-- Redesigned Filters -->
 <div class="card" style="padding: 1.2rem; margin-bottom: 1.5rem;">
-    <form method="get">
+    <form method="get" id="filter-form">
         <div style="display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+            <!-- Search Box -->
+            <div style="flex: 1; min-width: 200px;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Search</label>
+                <input
+                    type="text"
+                    id="search-input"
+                    placeholder="Player, team, matchup..."
+                    onkeyup="filterTable()"
+                    style="width: 100%; padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem; transition: border-color 0.2s ease;"
+                    onfocus="this.style.borderColor='var(--accent-green)'"
+                    onblur="this.style.borderColor='var(--border)'"
+                />
+            </div>
+
+            <!-- Date Range -->
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Timeframe</label>
-                <select name="days" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 130px;">
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">From</label>
+                <input type="date" name="date_from" value="{{ date_from or '' }}" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
+            </div>
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">To</label>
+                <input type="date" name="date_to" value="{{ date_to or '' }}" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
+            </div>
+
+            <!-- Quick Timeframe -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Quick</label>
+                <select name="days" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 110px;">
+                    <option value="" {% if not days %}selected{% endif %}>Custom</option>
                     <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 Days</option>
                     <option value="14" {% if days == 14 %}selected{% endif %}>Last 14 Days</option>
                     <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 Days</option>
                     <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 Days</option>
                 </select>
             </div>
+
+            <!-- Confidence Filter -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Confidence</label>
+                <select name="confidence" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                    <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
+                    {% for conf in all_confidences %}
+                    <option value="{{ conf }}" {% if confidence_filter == conf %}selected{% endif %}>{{ conf }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Stat Filter -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Stat</label>
+                <select name="stat" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                    <option value="all" {% if stat_filter == 'all' %}selected{% endif %}>All</option>
+                    {% for stat in all_stats %}
+                    <option value="{{ stat }}" {% if stat_filter == stat %}selected{% endif %}>{{ stat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Direction Filter -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Direction</label>
+                <select name="recommendation" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                    <option value="all" {% if recommendation_filter == 'all' %}selected{% endif %}>All</option>
+                    {% for rec in all_recommendations %}
+                    <option value="{{ rec }}" {% if recommendation_filter == rec %}selected{% endif %}>{{ rec }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Outcome Filter -->
+            <div>
+                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Outcome</label>
+                <select name="outcome" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                    <option value="all" {% if outcome_filter == 'all' %}selected{% endif %}>All</option>
+                    <option value="win" {% if outcome_filter == 'win' %}selected{% endif %}>Wins</option>
+                    <option value="loss" {% if outcome_filter == 'loss' %}selected{% endif %}>Losses</option>
+                    <option value="pending" {% if outcome_filter == 'pending' %}selected{% endif %}>Pending</option>
+                </select>
+            </div>
         </div>
     </form>
 </div>
 
-{% if plays_by_date %}
-    {% for date, plays in plays_by_date.items()|sort(reverse=True) %}
-    <div class="card">
-        <h3>{{ date.strftime('%B %d, %Y') }} - {{ plays|length }} plays</h3>
+{% if all_plays %}
+<div class="card">
+    <!-- Header with count -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0;"><span id="visible-count">{{ all_plays|length }}</span> Plays</h3>
+    </div>
 
-        <table>
-            <thead>
+    <!-- Scrollable table container -->
+    <div style="max-height: 600px; overflow-y: auto;">
+        <table id="history-table">
+            <thead style="position: sticky; top: 0; background: var(--bg-primary); z-index: 10;">
                 <tr>
-                    <th>Matchup</th>
-                    <th>Game Date</th>
-                    <th>Player</th>
-                    <th>Stat</th>
-                    <th>Vegas Line</th>
-                    <th>Play</th>
-                    <th>Odds</th>
-                    <th>Strength</th>
-                    <th>Actual Result</th>
-                    <th>Outcome</th>
-                    <th>Profit/Loss</th>
+                    <th class="sortable" data-sort="matchup" onclick="sortTable(0, 'string')">Matchup <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="date" onclick="sortTable(1, 'date')">Game Date <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="player" onclick="sortTable(2, 'string')">Player <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="stat" onclick="sortTable(3, 'string')">Stat <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="line" onclick="sortTable(4, 'number')">Vegas Line <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="play" onclick="sortTable(5, 'string')">Play <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="odds" onclick="sortTable(6, 'number')">Odds <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="strength" onclick="sortTable(7, 'number')">Strength <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="result" onclick="sortTable(8, 'number')">Actual Result <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="outcome" onclick="sortTable(9, 'string')">Outcome <span class="sort-icon">⇅</span></th>
+                    <th class="sortable" data-sort="profit" onclick="sortTable(10, 'number')">Profit/Loss <span class="sort-icon">⇅</span></th>
                 </tr>
             </thead>
             <tbody>
-                {% for play, game, matchup in plays %}
+                {% for play, game, matchup in all_plays[:100] %}
                 {% set game_local = game.game_date|to_local %}
                 <tr>
                     <td style="white-space: nowrap; font-weight: 600;">{{ matchup }}</td>
-                    <td style="white-space: nowrap;">{{ game_local.strftime('%b %d, %I:%M %p') }}</td>
+                    <td style="white-space: nowrap;" data-value="{{ game.game_date.timestamp() if game.game_date else 0 }}">{{ game_local.strftime('%b %d, %I:%M %p') }}</td>
                     <td><a href="/plays/{{ play.id }}" class="play-link">{{ play.player_name }}</a></td>
                     <td>{{ play.stat_type }}</td>
-                    <td><strong>{{ play.line_value|format_line }}</strong></td>
+                    <td data-value="{{ play.line_value or 0 }}"><strong>{{ play.line_value|format_line }}</strong></td>
                     <td>
                         {% if play.recommendation == 'OVER' %}
                             <span class="badge badge-over">OVER</span>
@@ -68,7 +142,7 @@
                             <span class="badge badge-no-play">NO PLAY</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-value="{% if play.recommendation == 'OVER' %}{{ play.over_odds or 0 }}{% elif play.recommendation == 'UNDER' %}{{ play.under_odds or 0 }}{% else %}0{% endif %}">
                         {% if play.recommendation == 'OVER' %}
                             {{ play.over_odds|format_odds }}
                         {% elif play.recommendation == 'UNDER' %}
@@ -77,20 +151,20 @@
                             -
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-value="{{ (play.z_score|abs) if play.z_score else 0 }}">
                         <div style="display: flex; align-items: baseline; gap: 0.5rem; font-family: 'JetBrains Mono', monospace;">
                             <span style="font-size: 0.7rem; padding: 0.2rem 0.4rem; border-radius: 3px; font-weight: 700; {% if play.confidence == 'High' %}background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3);{% else %}background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3);{% endif %}">{{ play.confidence[0] }}</span>
                             <span style="color: var(--text-secondary);">{{ play.z_score|z_to_confidence }}</span>
                         </div>
                     </td>
-                    <td>
+                    <td data-value="{{ play.actual_result if play.actual_result is not none else -9999 }}">
                         {% if play.actual_result is not none %}
                             <strong>{{ play.actual_result|int }}</strong>
                         {% else %}
                             <span style="color: #95a5a6;">Pending</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-value="{% if play.was_correct == true %}1{% elif play.was_correct == false %}0{% else %}-1{% endif %}">
                         {% if play.recommendation == 'NO PLAY' %}
                             {% if play.actual_result is not none %}
                                 <span class="badge" style="background: #95a5a6; color: white;">SKIP</span>
@@ -105,7 +179,7 @@
                             <span style="color: #95a5a6;">-</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-value="{% if play.recommendation != 'NO PLAY' and play.was_correct is not none %}{% if play.was_correct %}{% if play.recommendation == 'OVER' and play.over_odds %}{% if play.over_odds < 0 %}{{ 10 * (100 / (-play.over_odds)) }}{% else %}{{ 10 * (play.over_odds / 100) }}{% endif %}{% elif play.recommendation == 'UNDER' and play.under_odds %}{% if play.under_odds < 0 %}{{ 10 * (100 / (-play.under_odds)) }}{% else %}{{ 10 * (play.under_odds / 100) }}{% endif %}{% else %}10{% endif %}{% else %}-10{% endif %}{% else %}0{% endif %}">
                         {% if play.recommendation != 'NO PLAY' and play.was_correct is not none %}
                             {{ play|calculate_profit(10)|safe }}
                         {% else %}
@@ -117,11 +191,126 @@
             </tbody>
         </table>
     </div>
-    {% endfor %}
+    {% if all_plays|length > 100 %}
+    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(0, 255, 136, 0.08); border-radius: 6px; text-align: center;">
+        <span style="color: var(--text-secondary);">Showing 100 of {{ all_plays|length }} plays. Use filters to narrow results.</span>
+    </div>
+    {% endif %}
+</div>
 {% else %}
 <div class="empty-state">
     <h2>No historical plays found</h2>
     <p>Start running the daily analysis to build up historical data.</p>
 </div>
 {% endif %}
+
+<style>
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+    }
+    .sortable:hover {
+        background: rgba(0, 255, 136, 0.1);
+    }
+    .sort-icon {
+        font-size: 0.75rem;
+        opacity: 0.5;
+        margin-left: 0.25rem;
+    }
+    .sortable.asc .sort-icon::after {
+        content: '↑';
+    }
+    .sortable.desc .sort-icon::after {
+        content: '↓';
+    }
+    .sortable.asc .sort-icon,
+    .sortable.desc .sort-icon {
+        opacity: 1;
+        color: var(--accent-green);
+    }
+
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {
+        .card form > div {
+            flex-direction: column !important;
+        }
+        .card form > div > div {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+    }
+</style>
+
+<script>
+    let currentSortCol = -1;
+    let currentSortDir = 'asc';
+
+    function sortTable(colIndex, type) {
+        const table = document.getElementById('history-table');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const headers = table.querySelectorAll('th.sortable');
+
+        // Toggle direction if same column
+        if (currentSortCol === colIndex) {
+            currentSortDir = currentSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSortDir = 'asc';
+            currentSortCol = colIndex;
+        }
+
+        // Update header styles
+        headers.forEach((h, i) => {
+            h.classList.remove('asc', 'desc');
+            if (i === colIndex) {
+                h.classList.add(currentSortDir);
+            }
+        });
+
+        // Sort rows
+        rows.sort((a, b) => {
+            let aVal, bVal;
+            const aCell = a.cells[colIndex];
+            const bCell = b.cells[colIndex];
+
+            if (type === 'number' || type === 'date') {
+                aVal = parseFloat(aCell.getAttribute('data-value') || aCell.textContent.replace(/[^0-9.-]/g, '')) || 0;
+                bVal = parseFloat(bCell.getAttribute('data-value') || bCell.textContent.replace(/[^0-9.-]/g, '')) || 0;
+            } else {
+                aVal = aCell.textContent.trim().toLowerCase();
+                bVal = bCell.textContent.trim().toLowerCase();
+            }
+
+            if (aVal < bVal) return currentSortDir === 'asc' ? -1 : 1;
+            if (aVal > bVal) return currentSortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Reattach sorted rows
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Search/filter table functionality
+    function filterTable() {
+        const input = document.getElementById('search-input');
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById('history-table');
+        const rows = table.querySelectorAll('tbody tr');
+
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(filter)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        document.getElementById('visible-count').textContent = visibleCount;
+    }
+</script>
 {% endblock %}
