@@ -125,7 +125,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for play, game, matchup in all_plays[:100] %}
+                {% for play, game, matchup in all_plays %}
                 {% set game_local = game.game_date|to_local %}
                 <tr>
                     <td style="white-space: nowrap; font-weight: 600;">{{ matchup }}</td>
@@ -191,11 +191,6 @@
             </tbody>
         </table>
     </div>
-    {% if all_plays|length > 100 %}
-    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(0, 255, 136, 0.08); border-radius: 6px; text-align: center;">
-        <span style="color: var(--text-secondary);">Showing 100 of {{ all_plays|length }} plays. Use filters to narrow results.</span>
-    </div>
-    {% endif %}
 </div>
 {% else %}
 <div class="empty-state">

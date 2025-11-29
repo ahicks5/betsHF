@@ -80,7 +80,7 @@
 <div class="card">
     <!-- Header with View Toggle -->
     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
-        <h3 style="margin: 0;"><span id="visible-count">{{ plays_with_games[:100]|length }}</span> Plays</h3>
+        <h3 style="margin: 0;"><span id="visible-count">{{ plays_with_games|length }}</span> Plays</h3>
 
         <!-- View Toggle -->
         <div style="display: flex; gap: 0.5rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.3rem; border: 1px solid var(--border);">
@@ -114,7 +114,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for play, game, matchup in plays_with_games[:100] %}
+                    {% for play, game, matchup in plays_with_games %}
                     {% set status = game|game_status %}
                     {% set game_local = game.game_date|to_local %}
                     <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
@@ -184,7 +184,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for play, game, matchup in plays_with_games[:100] %}
+                    {% for play, game, matchup in plays_with_games %}
                     {% set status = game|game_status %}
                     {% set game_local = game.game_date|to_local %}
                     <tr {% if status == 'completed' %}style="opacity: 0.5;"{% endif %}>
@@ -217,11 +217,6 @@
             </table>
         </div>
     </div>
-    {% if plays_with_games|length > 100 %}
-    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(0, 255, 136, 0.08); border-radius: 6px; text-align: center;">
-        <span style="color: var(--text-secondary);">Showing 100 of {{ plays_with_games|length }} plays. Use filters to narrow results.</span>
-    </div>
-    {% endif %}
 </div>
 {% else %}
 <div class="empty-state" style="text-align: center; padding: 3rem 1.5rem;">
