@@ -15,16 +15,16 @@
 <!-- Redesigned Filters -->
 <div class="card" style="padding: 1.2rem; margin-bottom: 1.5rem;">
     <form method="get" id="filter-form">
-        <div style="display: flex; gap: 1rem; align-items: end; flex-wrap: wrap;">
+        <div class="filter-grid" style="display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap;">
             <!-- Search Box -->
-            <div style="flex: 1; min-width: 200px;">
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Search</label>
+            <div class="search-box" style="flex: 1; min-width: 180px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Search</label>
                 <input
                     type="text"
                     id="search-input"
-                    placeholder="Player, team, matchup..."
+                    placeholder="Player, team..."
                     onkeyup="filterTable()"
-                    style="width: 100%; padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.95rem; transition: border-color 0.2s ease;"
+                    style="width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.9rem;"
                     onfocus="this.style.borderColor='var(--accent-green)'"
                     onblur="this.style.borderColor='var(--border)'"
                 />
@@ -32,30 +32,30 @@
 
             <!-- Date Range -->
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">From</label>
-                <input type="date" name="date_from" value="{{ date_from or '' }}" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">From</label>
+                <input type="date" name="date_from" value="{{ date_from or '' }}" onchange="this.form.submit()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
             </div>
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">To</label>
-                <input type="date" name="date_to" value="{{ date_to or '' }}" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">To</label>
+                <input type="date" name="date_to" value="{{ date_to or '' }}" onchange="this.form.submit()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
             </div>
 
             <!-- Quick Timeframe -->
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Quick</label>
-                <select name="days" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 110px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Quick</label>
+                <select name="days" onchange="this.form.submit()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
                     <option value="" {% if not days %}selected{% endif %}>Custom</option>
-                    <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 Days</option>
-                    <option value="14" {% if days == 14 %}selected{% endif %}>Last 14 Days</option>
-                    <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 Days</option>
-                    <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 Days</option>
+                    <option value="7" {% if days == 7 %}selected{% endif %}>7 Days</option>
+                    <option value="14" {% if days == 14 %}selected{% endif %}>14 Days</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>30 Days</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>90 Days</option>
                 </select>
             </div>
 
             <!-- Confidence Filter -->
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Confidence</label>
-                <select name="confidence" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Conf</label>
+                <select name="confidence" onchange="this.form.submit()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
                     <option value="all" {% if confidence_filter == 'all' %}selected{% endif %}>All</option>
                     {% for conf in all_confidences %}
                     <option value="{{ conf }}" {% if confidence_filter == conf %}selected{% endif %}>{{ conf }}</option>
@@ -65,8 +65,8 @@
 
             <!-- Stat Filter -->
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Stat</label>
-                <select name="stat" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Stat</label>
+                <select name="stat" onchange="this.form.submit()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
                     <option value="all" {% if stat_filter == 'all' %}selected{% endif %}>All</option>
                     {% for stat in all_stats %}
                     <option value="{{ stat }}" {% if stat_filter == stat %}selected{% endif %}>{{ stat }}</option>
@@ -76,8 +76,8 @@
 
             <!-- Direction Filter -->
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Direction</label>
-                <select name="recommendation" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Dir</label>
+                <select name="recommendation" onchange="this.form.submit()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
                     <option value="all" {% if recommendation_filter == 'all' %}selected{% endif %}>All</option>
                     {% for rec in all_recommendations %}
                     <option value="{{ rec }}" {% if recommendation_filter == rec %}selected{% endif %}>{{ rec }}</option>
@@ -87,8 +87,8 @@
 
             <!-- Outcome Filter -->
             <div>
-                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Outcome</label>
-                <select name="outcome" onchange="this.form.submit()" style="padding: 0.7rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.9rem; min-width: 100px;">
+                <label style="font-size: 0.8rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.4rem; display: block; text-transform: uppercase; letter-spacing: 0.05em;">Result</label>
+                <select name="outcome" onchange="this.form.submit()" style="padding: 0.6rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; font-size: 0.85rem;">
                     <option value="all" {% if outcome_filter == 'all' %}selected{% endif %}>All</option>
                     <option value="win" {% if outcome_filter == 'win' %}selected{% endif %}>Wins</option>
                     <option value="loss" {% if outcome_filter == 'loss' %}selected{% endif %}>Losses</option>
@@ -232,12 +232,31 @@
 
     /* Mobile responsiveness */
     @media (max-width: 768px) {
-        .card form > div {
-            flex-direction: column !important;
+        .filter-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 0.75rem !important;
         }
-        .card form > div > div {
+        .filter-grid > div {
             width: 100% !important;
-            min-width: 100% !important;
+            min-width: 0 !important;
+        }
+        .filter-grid .search-box {
+            grid-column: 1 / -1;
+        }
+        .filter-grid select,
+        .filter-grid input[type="date"] {
+            width: 100% !important;
+            min-width: 0 !important;
+            font-size: 16px !important; /* Prevents zoom on iOS */
+        }
+        .filter-grid label {
+            font-size: 0.7rem !important;
+        }
+    }
+    @media (max-width: 480px) {
+        .filter-grid {
+            grid-template-columns: 1fr 1fr !important;
         }
     }
 </style>

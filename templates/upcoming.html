@@ -224,11 +224,14 @@
     {% endif %}
 </div>
 {% else %}
-<div class="empty-state">
-    <h2>No upcoming plays found</h2>
-    <p>Run <code>python scripts/collect_today.py</code> followed by <code>python scripts/find_plays.py</code> to generate plays.</p>
-    <p style="color: #7f8c8d; margin-top: 10px;">
-        <small>Note: Props for tomorrow's games are usually available after 10 AM ET today.</small>
+<div class="empty-state" style="text-align: center; padding: 3rem 1.5rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">🏀</div>
+    <h2 style="margin-bottom: 0.5rem;">No Active Plays Right Now</h2>
+    <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
+        New plays are generated daily when games are scheduled. Check back soon for today's picks!
+    </p>
+    <p style="color: var(--text-dim); margin-top: 1.5rem; font-size: 0.85rem;">
+        Props typically available after 10 AM ET
     </p>
 </div>
 {% endif %}

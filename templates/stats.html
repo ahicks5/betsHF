@@ -301,62 +301,66 @@
 <h2 style="margin-top: 2.5rem; margin-bottom: 1rem;">Profit Over Time</h2>
 <div class="card">
     <h3>Cumulative Profit Trend</h3>
-    <p style="margin-top: 0.5rem; color: var(--text-dim);">Track how your bankroll has grown (or shrunk) over time</p>
+    <p style="margin-top: 0.5rem; color: var(--text-dim);">Track how your bankroll has grown over time</p>
 
     <!-- Chart -->
     <div style="margin-top: 1.5rem; height: 300px; position: relative;">
         <canvas id="profitChart"></canvas>
     </div>
 
-    <!-- Data Table (collapsed by default) -->
-    <details style="margin-top: 2rem;">
-        <summary style="cursor: pointer; font-weight: bold; padding: 0.5rem; background: var(--bg-secondary); border-radius: 4px;">
-            📊 View Data Table
-        </summary>
-        <div style="margin-top: 1rem; overflow-x: auto;">
-            <table style="font-size: 0.85rem;">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Cumulative Profit</th>
-                        <th>Trend</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for i in range([cumulative_profit_data|length, 15]|min) %}
-                    {% set idx = cumulative_profit_data|length - 1 - i %}
-                    {% set data = cumulative_profit_data[idx] %}
-                    {% set prev_profit = cumulative_profit_data[idx - 1].profit if idx > 0 else 0 %}
-                    <tr>
-                        <td>{{ data.date }}</td>
-                        <td style="color: {% if data.profit > 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: bold; font-family: 'JetBrains Mono', monospace;">
-                            ${{ data.profit }}
-                        </td>
-                        <td>
-                            {% if data.profit > prev_profit %}
-                                <span style="color: var(--success);">↗ Up</span>
-                            {% elif data.profit < prev_profit %}
-                                <span style="color: var(--danger);">↘ Down</span>
-                            {% else %}
-                                <span style="color: var(--text-dim);">→ Flat</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Summary Stats Row -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-top: 1.5rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+        <div style="text-align: center;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Starting</div>
+            <div style="font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">$0.00</div>
         </div>
-    </details>
+        <div style="text-align: center;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Current</div>
+            <div style="font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: {% if total_profit > 0 %}var(--success){% else %}var(--danger){% endif %};">
+                {% if total_profit > 0 %}+{% endif %}${{ total_profit|format_float(2) }}
+            </div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Best Day</div>
+            <div style="font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--success);">
+                {% if daily_profit %}+${{ (daily_profit|map(attribute='1')|max)|format_float(2) }}{% else %}$0.00{% endif %}
+            </div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase;">Days Tracked</div>
+            <div style="font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">{{ days_tracked }}</div>
+        </div>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-// Profit Over Time Chart
-const profitData = {{ cumulative_profit_data|tojson }};
-const dates = profitData.map(d => d.date);
-const profits = profitData.map(d => d.profit);
+// Profit Over Time Chart - Aggregate by date for cleaner display
+const rawProfitData = {{ cumulative_profit_data|tojson }};
+
+// Aggregate to get one point per date (last value of each day)
+const dateMap = new Map();
+rawProfitData.forEach(d => {
+    dateMap.set(d.date, d.profit);
+});
+
+const aggregatedData = Array.from(dateMap.entries()).map(([date, profit]) => ({
+    date: date,
+    profit: profit
+})).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+const dates = aggregatedData.map(d => {
+    // Format date nicely (e.g., "Nov 25")
+    const dateObj = new Date(d.date);
+    return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+});
+const profits = aggregatedData.map(d => d.profit);
 
 const ctx = document.getElementById('profitChart').getContext('2d');
+const finalProfit = profits.length > 0 ? profits[profits.length - 1] : 0;
+const lineColor = finalProfit >= 0 ? '#00ff88' : '#e74c3c';
+const bgColor = finalProfit >= 0 ? 'rgba(0, 255, 136, 0.1)' : 'rgba(231, 76, 60, 0.1)';
+
 new Chart(ctx, {
     type: 'line',
     data: {
@@ -364,39 +368,45 @@ new Chart(ctx, {
         datasets: [{
             label: 'Cumulative Profit ($)',
             data: profits,
-            borderColor: profits[profits.length - 1] >= 0 ? '#27ae60' : '#e74c3c',
-            backgroundColor: profits[profits.length - 1] >= 0 ? 'rgba(39, 174, 96, 0.1)' : 'rgba(231, 76, 60, 0.1)',
-            borderWidth: 2,
-            tension: 0.3,
+            borderColor: lineColor,
+            backgroundColor: bgColor,
+            borderWidth: 3,
+            tension: 0.4,
             fill: true,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            pointBackgroundColor: profits[profits.length - 1] >= 0 ? '#27ae60' : '#e74c3c',
+            pointRadius: profits.length <= 10 ? 6 : (profits.length <= 20 ? 4 : 0),
+            pointHoverRadius: 8,
+            pointBackgroundColor: lineColor,
+            pointBorderColor: '#1a1a2e',
+            pointBorderWidth: 2,
         }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+            intersect: false,
+            mode: 'index'
+        },
         plugins: {
             legend: {
-                display: true,
-                labels: {
-                    color: '#e0e0e0',
-                    font: {
-                        size: 12
-                    }
-                }
+                display: false
             },
             tooltip: {
                 backgroundColor: 'rgba(30, 30, 30, 0.95)',
                 titleColor: '#e0e0e0',
                 bodyColor: '#e0e0e0',
-                borderColor: '#444',
+                borderColor: lineColor,
                 borderWidth: 1,
+                padding: 12,
+                displayColors: false,
                 callbacks: {
+                    title: function(context) {
+                        return context[0].label;
+                    },
                     label: function(context) {
                         let value = context.parsed.y;
-                        return 'Profit: $' + value.toFixed(2);
+                        let prefix = value >= 0 ? '+' : '';
+                        return prefix + '$' + value.toFixed(2);
                     }
                 }
             }
@@ -405,20 +415,19 @@ new Chart(ctx, {
             x: {
                 ticks: {
                     color: '#999',
-                    maxRotation: 45,
-                    minRotation: 45,
+                    maxRotation: 0,
                     autoSkip: true,
-                    maxTicksLimit: 20
+                    maxTicksLimit: 8
                 },
                 grid: {
-                    color: 'rgba(255, 255, 255, 0.05)'
+                    display: false
                 }
             },
             y: {
                 ticks: {
                     color: '#999',
                     callback: function(value) {
-                        return '$' + value.toFixed(0);
+                        return (value >= 0 ? '+' : '') + '$' + value.toFixed(0);
                     }
                 },
                 grid: {
@@ -467,10 +476,12 @@ new Chart(ctx, {
 </div>
 
 {% else %}
-<div class="card" style="margin-top: 2rem;">
-    <h3>No Results Yet</h3>
-    <p>Once games are completed and results are collected, comprehensive analytics will appear here.</p>
-    <p style="margin-top: 1rem;"><strong>To collect results:</strong> Run <code>python scripts/collect_results.py</code></p>
+<div class="card" style="margin-top: 2rem; text-align: center; padding: 3rem 1.5rem;">
+    <div style="font-size: 3rem; margin-bottom: 1rem;">📊</div>
+    <h3 style="margin-bottom: 0.5rem;">Analytics Coming Soon</h3>
+    <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
+        Once games are completed and results are collected, comprehensive analytics will appear here.
+    </p>
 </div>
 {% endif %}
 
@@ -523,8 +534,8 @@ new Chart(ctx, {
 </div>
 
 <div class="card">
-    <h3>Risk Profile</h3>
-    <p style="color: var(--text-dim); margin-top: 0.5rem;">Portfolio-style risk assessment for betting performance</p>
+    <h3>Performance Profile</h3>
+    <p style="color: var(--text-dim); margin-top: 0.5rem;">Key metrics for evaluating betting performance</p>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
         <div>
             <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">WIN/LOSS RATIO</div>
@@ -537,7 +548,7 @@ new Chart(ctx, {
             </div>
             <small style="color: var(--text-dim);">
                 {% set ratio = (avg_win_amount / avg_loss_amount) if avg_loss_amount != 0 and avg_win_amount and avg_loss_amount else 0 %}
-                {% if ratio > 2 %}Excellent{% elif ratio > 1.5 %}Good{% elif ratio > 1 %}Fair{% else %}Poor{% endif %}
+                {% if ratio > 2 %}Excellent{% elif ratio > 1.5 %}Good{% elif ratio > 1 %}Solid{% else %}Building{% endif %}
             </small>
         </div>
 
@@ -558,21 +569,23 @@ new Chart(ctx, {
             <div style="font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">
                 {{ ((wins / total_graded * 100) if total_graded > 0 else 0)|format_float(0) }}%
             </div>
-            <small style="color: var(--text-dim);">based on win rate stability</small>
+            <small style="color: var(--text-dim);">based on win rate</small>
         </div>
 
         <div>
-            <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">RISK LEVEL</div>
-            <div style="font-size: 1.8rem; font-weight: 700;">
-                {% if max_drawdown and max_drawdown < 50 %}
-                    <span style="color: var(--success);">Low</span>
-                {% elif max_drawdown and max_drawdown < 150 %}
-                    <span style="color: var(--warning);">Moderate</span>
+            <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.5rem;">RECOVERY STRENGTH</div>
+            <div style="font-size: 1.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">
+                {% if max_drawdown and total_profit %}
+                    {% if total_profit > 0 %}
+                        <span style="color: var(--success);">Strong</span>
+                    {% else %}
+                        <span style="color: var(--warning);">Building</span>
+                    {% endif %}
                 {% else %}
-                    <span style="color: var(--danger);">High</span>
+                    -
                 {% endif %}
             </div>
-            <small style="color: var(--text-dim);">based on drawdown</small>
+            <small style="color: var(--text-dim);">profit vs drawdown</small>
         </div>
     </div>
 </div>
