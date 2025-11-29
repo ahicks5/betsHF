@@ -14,13 +14,12 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from database.db import get_engine, get_session
+from database.db import get_session
 from sqlalchemy import text
 
 
 def migrate():
     """Run the migration"""
-    engine = get_engine()
     session = get_session()
 
     print("=" * 60)
