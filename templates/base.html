@@ -624,12 +624,13 @@
                 <a href="/plays/history" {% if request.path.startswith('/plays/history') %}class="active"{% endif %}>History</a>
                 <a href="/stats" {% if request.path == '/stats' %}class="active"{% endif %}>Stats</a>
 
-                <!-- Model Switcher -->
+                <!-- Model Switcher - server-side rendered based on URL param -->
+                {% set current_model = request.args.get('model', 'pulsar_v1') %}
                 <div class="model-switcher" style="margin-left: auto; display: flex; gap: 0.4rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.25rem; border: 1px solid var(--border);">
-                    <button onclick="setModel('pulsar_v1')" id="model-btn-pulsar_v1" class="model-btn" data-model="pulsar_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
+                    <button onclick="setModel('pulsar_v1')" class="model-btn {% if current_model == 'pulsar_v1' %}active{% endif %}" data-model="pulsar_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
                         Pulsar 1.0
                     </button>
-                    <button onclick="setModel('sentinel_v1')" id="model-btn-sentinel_v1" class="model-btn" data-model="sentinel_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
+                    <button onclick="setModel('sentinel_v1')" class="model-btn {% if current_model == 'sentinel_v1' %}active{% endif %}" data-model="sentinel_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
                         Sentinel 1.0
                     </button>
                 </div>
@@ -642,7 +643,7 @@
     </div>
 
     <style>
-        /* Model Switcher Styles - apply immediately to prevent flash */
+        /* Model Switcher Styles */
         .model-btn {
             background: transparent;
             color: var(--text-secondary);
@@ -678,75 +679,13 @@
         }
     </style>
 
-    <!-- Inline script to set active state immediately before render -->
     <script>
-        (function() {
-            // Get model from URL or localStorage immediately
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlModel = urlParams.get('model');
-            const storedModel = localStorage.getItem('selectedModel');
-            const currentModel = urlModel || storedModel || 'pulsar_v1';
-
-            // Sync localStorage
-            localStorage.setItem('selectedModel', currentModel);
-
-            // Add active class immediately via inline style injection
-            const style = document.createElement('style');
-            style.textContent = `#model-btn-${currentModel} { background: linear-gradient(135deg, ${currentModel === 'pulsar_v1' ? 'rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.1)' : 'rgba(167, 139, 250, 0.2), rgba(167, 139, 250, 0.1)'}); color: ${currentModel === 'pulsar_v1' ? '#00ff88' : '#a78bfa'}; box-shadow: 0 0 10px ${currentModel === 'pulsar_v1' ? 'rgba(0, 255, 136, 0.2)' : 'rgba(167, 139, 250, 0.2)'}; }`;
-            document.head.appendChild(style);
-        })();
-    </script>
-
-    <script>
-        // Model Switcher Logic
-        const MODELS = {
-            'pulsar_v1': { name: 'Pulsar 1.0', color: '#00ff88' },
-            'sentinel_v1': { name: 'Sentinel 1.0', color: '#a78bfa' }
-        };
-
-        function getCurrentModel() {
-            return localStorage.getItem('selectedModel') || 'pulsar_v1';
-        }
-
+        // Simple model switcher - URL is the single source of truth
         function setModel(modelId) {
-            localStorage.setItem('selectedModel', modelId);
-            updateModelButtons();
-
-            // Reload page with model parameter
             const url = new URL(window.location.href);
             url.searchParams.set('model', modelId);
             window.location.href = url.toString();
         }
-
-        function updateModelButtons() {
-            const currentModel = getCurrentModel();
-            document.querySelectorAll('.model-btn').forEach(btn => {
-                if (btn.dataset.model === currentModel) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
-        }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check URL for model param and sync with localStorage
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlModel = urlParams.get('model');
-
-            if (urlModel && MODELS[urlModel]) {
-                localStorage.setItem('selectedModel', urlModel);
-            } else if (!urlParams.has('model')) {
-                // No model in URL - add it
-                const currentModel = getCurrentModel();
-                const url = new URL(window.location.href);
-                url.searchParams.set('model', currentModel);
-                window.history.replaceState({}, '', url.toString());
-            }
-
-            updateModelButtons();
-        });
     </script>
 </body>
 </html>
