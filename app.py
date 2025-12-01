@@ -1014,6 +1014,7 @@ def api_daily_breakdown():
 
     session = get_session()
     date_str = request.args.get('date')
+    model_filter = request.args.get('model', DEFAULT_MODEL_ID)
     bet_amount = 10
 
     if not date_str:
@@ -1051,12 +1052,13 @@ def api_daily_breakdown():
     day_losses = 0
 
     for game, away, home in games:
-        # Get plays for this game
+        # Get plays for this game (filtered by model)
         plays = session.query(Play).join(
             PropLine, Play.prop_line_id == PropLine.id
         ).filter(
             PropLine.game_id == game.id,
-            Play.recommendation != 'NO PLAY'
+            Play.recommendation != 'NO PLAY',
+            Play.model_name == model_filter
         ).all()
 
         game_profit = 0
@@ -1117,6 +1119,7 @@ def api_game_analysis(game_id):
     from flask import jsonify
 
     session = get_session()
+    model_filter = request.args.get('model', DEFAULT_MODEL_ID)
     bet_amount = 10
 
     # Get game info
@@ -1135,12 +1138,13 @@ def api_game_analysis(game_id):
     game, away, home = game_info
     matchup = f"{away.abbreviation} @ {home.abbreviation}"
 
-    # Get all plays for this game
+    # Get all plays for this game (filtered by model)
     plays = session.query(Play).join(
         PropLine, Play.prop_line_id == PropLine.id
     ).filter(
         PropLine.game_id == game_id,
-        Play.recommendation != 'NO PLAY'
+        Play.recommendation != 'NO PLAY',
+        Play.model_name == model_filter
     ).all()
 
     # Analyze plays

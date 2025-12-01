@@ -110,6 +110,7 @@ def save_plays_to_db(session, analyses_with_props, model_id):
     """Save analyzed plays to the database for a specific model"""
     saved_count = 0
     skipped_count = 0
+    duplicate_count = 0
 
     for item in analyses_with_props:
         analysis = item['analysis']
@@ -123,6 +124,16 @@ def save_plays_to_db(session, analyses_with_props, model_id):
             continue
 
         try:
+            # Check if play already exists for this prop_line + model combination
+            existing_play = session.query(Play).filter(
+                Play.prop_line_id == prop.id,
+                Play.model_name == model_id
+            ).first()
+
+            if existing_play:
+                duplicate_count += 1
+                continue
+
             # Convert numpy types to Python native types for PostgreSQL compatibility
             def to_python_type(val):
                 """Convert numpy types to Python native types"""
@@ -162,6 +173,8 @@ def save_plays_to_db(session, analyses_with_props, model_id):
             continue
 
     session.commit()
+    if duplicate_count > 0:
+        print(f"   (Skipped {duplicate_count} duplicates)")
     return saved_count, skipped_count
 
 

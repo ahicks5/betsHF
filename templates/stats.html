@@ -649,7 +649,7 @@ async function loadDailyBreakdown() {
     gamesDiv.innerHTML = '';
 
     try {
-        const response = await fetch(`/api/daily-breakdown?date=${dateInput.value}`);
+        const response = await fetch(`/api/daily-breakdown?date=${dateInput.value}&model={{ model_filter }}`);
         const data = await response.json();
 
         loadingDiv.style.display = 'none';
@@ -863,7 +863,7 @@ async function loadGameAnalysis() {
     resultsDiv.style.display = 'none';
 
     try {
-        const response = await fetch(`/api/game-analysis/${gameId}`);
+        const response = await fetch(`/api/game-analysis/${gameId}?model={{ model_filter }}`);
         const data = await response.json();
 
         if (data.error) {
