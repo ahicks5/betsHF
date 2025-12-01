@@ -124,9 +124,11 @@ def save_plays_to_db(session, analyses_with_props, model_id):
             continue
 
         try:
-            # Check if play already exists for this prop_line + model combination
+            # Check if play already exists for this player + stat + model combination
+            # This is the real uniqueness constraint - one play per player/stat/model
             existing_play = session.query(Play).filter(
-                Play.prop_line_id == prop.id,
+                Play.player_name == analysis['player_name'],
+                Play.stat_type == analysis['stat_type'],
                 Play.model_name == model_id
             ).first()
 
