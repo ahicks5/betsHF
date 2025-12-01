@@ -125,11 +125,12 @@ def save_plays_to_db(session, analyses_with_props, model_id):
 
         try:
             # Check if play already exists for this player + stat + model combination
-            # This is the real uniqueness constraint - one play per player/stat/model
+            # Only check UNGRADED plays - we want to allow the same player/stat on different days
             existing_play = session.query(Play).filter(
                 Play.player_name == analysis['player_name'],
                 Play.stat_type == analysis['stat_type'],
-                Play.model_name == model_id
+                Play.model_name == model_id,
+                Play.was_correct == None  # Only check ungraded (today's) plays
             ).first()
 
             if existing_play:
