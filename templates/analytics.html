@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Lab - TakeFreePoints.com{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+    <h2 style="margin: 0;">Analytics Lab</h2>
+    <span style="color: var(--text-dim); font-size: 0.9rem;">Deep dive into player prop trends</span>
+</div>
+
+<!-- Filters Card -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+        <!-- Player Search -->
+        <div style="flex: 1; min-width: 200px;">
+            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Player</label>
+            <input type="text" id="player-search" list="player-list" placeholder="Search player..."
+                   style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-family: inherit;">
+            <datalist id="player-list">
+                {% for player in players %}
+                <option value="{{ player }}">
+                {% endfor %}
+            </datalist>
+        </div>
+
+        <!-- Stat Type -->
+        <div style="min-width: 120px;">
+            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Stat Type</label>
+            <select id="stat-type" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
+                <option value="">All Stats</option>
+                <option value="PTS">Points</option>
+                <option value="REB">Rebounds</option>
+                <option value="AST">Assists</option>
+                <option value="FG3M">3-Pointers</option>
+            </select>
+        </div>
+
+        <!-- Team Filter -->
+        <div style="min-width: 150px;">
+            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Team</label>
+            <select id="team-filter" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
+                <option value="">All Teams</option>
+                {% for team in teams %}
+                <option value="{{ team }}">{{ team }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Outcome Filter -->
+        <div style="min-width: 120px;">
+            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Outcome</label>
+            <select id="outcome-filter" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
+                <option value="">All Plays</option>
+                <option value="win">Wins Only</option>
+                <option value="loss">Losses Only</option>
+                <option value="pending">Pending</option>
+            </select>
+        </div>
+
+        <!-- Date Range -->
+        <div style="min-width: 140px;">
+            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">Date Range</label>
+            <select id="date-range" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
+                <option value="7">Last 7 Days</option>
+                <option value="14">Last 14 Days</option>
+                <option value="30" selected>Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="all">All Time</option>
+            </select>
+        </div>
+
+        <!-- Apply Button -->
+        <div>
+            <button onclick="loadAnalytics()" style="padding: 0.6rem 1.5rem; background: linear-gradient(135deg, var(--accent-green) 0%, #00cc6f 100%); color: #0a0e17; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-family: inherit; transition: all 0.3s ease;">
+                Analyze
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Empty State (shown by default) -->
+<div id="empty-state" class="card" style="text-align: center; padding: 4rem 2rem;">
+    <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">📊</div>
+    <h3 style="margin-bottom: 0.5rem; color: var(--text-primary);">Select Filters to Begin</h3>
+    <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
+        Choose a player, stat type, or team above to visualize prop performance over time.
+    </p>
+</div>
+
+<!-- Loading State -->
+<div id="loading-state" style="display: none; text-align: center; padding: 4rem 2rem;">
+    <div class="loading" style="width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 1rem;"></div>
+    <p style="color: var(--text-secondary);">Crunching the numbers...</p>
+</div>
+
+<!-- Results Section -->
+<div id="results-section" style="display: none;">
+    <!-- Summary Stats -->
+    <div class="stat-grid" id="summary-stats">
+        <!-- Populated by JS -->
+    </div>
+
+    <!-- Main Chart -->
+    <div class="card" style="padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h3 style="margin: 0;" id="chart-title">Performance Over Time</h3>
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="toggleChartType('line')" id="btn-line" class="chart-type-btn active" style="padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; font-size: 0.8rem;">Line</button>
+                <button onclick="toggleChartType('bar')" id="btn-bar" class="chart-type-btn" style="padding: 0.4rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-secondary); cursor: pointer; font-size: 0.8rem;">Bar</button>
+            </div>
+        </div>
+        <div style="position: relative; height: 400px;">
+            <canvas id="analytics-chart"></canvas>
+        </div>
+    </div>
+
+    <!-- Detailed Table -->
+    <div class="card" style="margin-top: 1.5rem;">
+        <h3 style="margin-bottom: 1rem;">Play-by-Play Details</h3>
+        <div style="overflow-x: auto;">
+            <table id="details-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Player</th>
+                        <th>Stat</th>
+                        <th>Line</th>
+                        <th>Projected</th>
+                        <th>Actual</th>
+                        <th>Pick</th>
+                        <th>Result</th>
+                        <th>Profit</th>
+                    </tr>
+                </thead>
+                <tbody id="details-tbody">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    .chart-type-btn.active {
+        background: var(--accent-green) !important;
+        color: #0a0e17 !important;
+        border-color: var(--accent-green) !important;
+    }
+
+    #player-search:focus,
+    #stat-type:focus,
+    #team-filter:focus,
+    #outcome-filter:focus,
+    #date-range:focus {
+        outline: none;
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+    }
+
+    .result-win {
+        color: var(--success);
+        font-weight: 600;
+    }
+
+    .result-loss {
+        color: var(--danger);
+        font-weight: 600;
+    }
+
+    .result-pending {
+        color: var(--text-dim);
+    }
+
+    .profit-positive {
+        color: var(--success);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .profit-negative {
+        color: var(--danger);
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    .profit-neutral {
+        color: var(--text-dim);
+        font-family: 'JetBrains Mono', monospace;
+    }
+</style>
+
+<script>
+    let analyticsChart = null;
+    let currentChartType = 'line';
+    let currentData = null;
+    const modelFilter = '{{ model_filter }}';
+
+    async function loadAnalytics() {
+        const player = document.getElementById('player-search').value;
+        const statType = document.getElementById('stat-type').value;
+        const team = document.getElementById('team-filter').value;
+        const outcome = document.getElementById('outcome-filter').value;
+        const dateRange = document.getElementById('date-range').value;
+
+        // Need at least one filter
+        if (!player && !statType && !team) {
+            alert('Please select at least one filter (player, stat type, or team)');
+            return;
+        }
+
+        // Show loading
+        document.getElementById('empty-state').style.display = 'none';
+        document.getElementById('results-section').style.display = 'none';
+        document.getElementById('loading-state').style.display = 'block';
+
+        try {
+            const params = new URLSearchParams({
+                model: modelFilter,
+                ...(player && { player }),
+                ...(statType && { stat_type: statType }),
+                ...(team && { team }),
+                ...(outcome && { outcome }),
+                ...(dateRange && { days: dateRange })
+            });
+
+            const response = await fetch(`/api/analytics?${params}`);
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            currentData = data;
+            renderResults(data);
+
+        } catch (error) {
+            console.error('Error loading analytics:', error);
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'block';
+            document.getElementById('empty-state').innerHTML = `
+                <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">⚠️</div>
+                <h3 style="margin-bottom: 0.5rem; color: var(--text-primary);">Error Loading Data</h3>
+                <p style="color: var(--text-secondary);">${error.message}</p>
+            `;
+        }
+    }
+
+    function renderResults(data) {
+        document.getElementById('loading-state').style.display = 'none';
+        document.getElementById('results-section').style.display = 'block';
+
+        // Update summary stats
+        const summaryHtml = `
+            <div class="stat-box">
+                <h3>${data.summary.total_plays}</h3>
+                <p>Total Plays</p>
+            </div>
+            <div class="stat-box">
+                <h3>${data.summary.record}</h3>
+                <p>Record</p>
+                <small>${data.summary.win_rate}% Win Rate</small>
+            </div>
+            <div class="stat-box">
+                <h3 style="${data.summary.total_profit >= 0 ? 'color: var(--success)' : 'color: var(--danger)'}">${data.summary.total_profit >= 0 ? '+' : ''}$${data.summary.total_profit.toFixed(2)}</h3>
+                <p>Total Profit</p>
+            </div>
+            <div class="stat-box">
+                <h3>${data.summary.avg_deviation.toFixed(2)}</h3>
+                <p>Avg Deviation</p>
+                <small>Actual vs Line</small>
+            </div>
+        `;
+        document.getElementById('summary-stats').innerHTML = summaryHtml;
+
+        // Update chart title
+        let title = 'Performance Over Time';
+        if (data.filters.player) title = `${data.filters.player} - ${data.filters.stat_type || 'All Stats'}`;
+        else if (data.filters.stat_type) title = `${data.filters.stat_type} Props`;
+        else if (data.filters.team) title = `${data.filters.team} Players`;
+        document.getElementById('chart-title').textContent = title;
+
+        // Render chart
+        renderChart(data.plays);
+
+        // Render table
+        renderTable(data.plays);
+    }
+
+    function renderChart(plays) {
+        const ctx = document.getElementById('analytics-chart').getContext('2d');
+
+        // Destroy existing chart
+        if (analyticsChart) {
+            analyticsChart.destroy();
+        }
+
+        // Prepare data - reverse to show oldest first
+        const sortedPlays = [...plays].reverse();
+
+        const labels = sortedPlays.map(p => p.date);
+        const lineData = sortedPlays.map(p => p.line_value);
+        const projectedData = sortedPlays.map(p => p.expected_value);
+        const actualData = sortedPlays.map(p => p.actual_result);
+
+        // Point colors based on result
+        const pointColors = sortedPlays.map(p => {
+            if (p.was_correct === true) return '#10b981';  // green
+            if (p.was_correct === false) return '#ef4444'; // red
+            return '#6b7280'; // gray for pending
+        });
+
+        const datasets = [
+            {
+                label: 'Line',
+                data: lineData,
+                borderColor: '#a78bfa',
+                backgroundColor: 'rgba(167, 139, 250, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false
+            },
+            {
+                label: 'Projected',
+                data: projectedData,
+                borderColor: '#00d4ff',
+                backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                tension: 0.3,
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                fill: false
+            },
+            {
+                label: 'Actual',
+                data: actualData,
+                borderColor: '#00ff88',
+                backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                pointBackgroundColor: pointColors,
+                pointBorderColor: pointColors,
+                fill: false
+            }
+        ];
+
+        analyticsChart = new Chart(ctx, {
+            type: currentChartType,
+            data: { labels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#9aa0a6',
+                            font: { family: 'Inter' }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1a1f2e',
+                        titleColor: '#e8eaed',
+                        bodyColor: '#9aa0a6',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            afterBody: function(context) {
+                                const idx = context[0].dataIndex;
+                                const play = sortedPlays[idx];
+                                let result = play.was_correct === true ? '✅ WIN' : play.was_correct === false ? '❌ LOSS' : '⏳ Pending';
+                                let profit = play.profit !== null ? (play.profit >= 0 ? '+$' + play.profit.toFixed(2) : '-$' + Math.abs(play.profit).toFixed(2)) : '-';
+                                return `\n${play.player_name}\n${play.recommendation} ${play.line_value}\nResult: ${result}\nProfit: ${profit}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#6b7280', maxRotation: 45 }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#6b7280' }
+                    }
+                }
+            }
+        });
+    }
+
+    function toggleChartType(type) {
+        currentChartType = type;
+        document.querySelectorAll('.chart-type-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('btn-' + type).classList.add('active');
+        if (currentData) {
+            renderChart(currentData.plays);
+        }
+    }
+
+    function renderTable(plays) {
+        const tbody = document.getElementById('details-tbody');
+
+        if (plays.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: var(--text-dim);">No plays found matching filters</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = plays.map(p => {
+            let resultClass = 'result-pending';
+            let resultText = 'Pending';
+            if (p.was_correct === true) { resultClass = 'result-win'; resultText = 'WIN'; }
+            else if (p.was_correct === false) { resultClass = 'result-loss'; resultText = 'LOSS'; }
+
+            let profitClass = 'profit-neutral';
+            let profitText = '-';
+            if (p.profit !== null) {
+                if (p.profit > 0) { profitClass = 'profit-positive'; profitText = '+$' + p.profit.toFixed(2); }
+                else if (p.profit < 0) { profitClass = 'profit-negative'; profitText = '-$' + Math.abs(p.profit).toFixed(2); }
+                else { profitText = '$0.00'; }
+            }
+
+            return `
+                <tr>
+                    <td>${p.date}</td>
+                    <td>${p.player_name}</td>
+                    <td>${p.stat_type}</td>
+                    <td>${p.line_value}</td>
+                    <td>${p.expected_value ? p.expected_value.toFixed(1) : '-'}</td>
+                    <td>${p.actual_result !== null ? p.actual_result : '-'}</td>
+                    <td><span class="badge badge-${p.recommendation.toLowerCase()}">${p.recommendation}</span></td>
+                    <td class="${resultClass}">${resultText}</td>
+                    <td class="${profitClass}">${profitText}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Allow Enter key to trigger search
+    document.getElementById('player-search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') loadAnalytics();
+    });
+</script>
+{% endblock %}

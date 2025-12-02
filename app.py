@@ -958,6 +958,166 @@ def calculate_profit(play, default_bet_amount=10):
         return f'<span style="color: #e74c3c; font-weight: bold;">-${bet_amount:.2f}</span>'
 
 
+@app.route('/analytics')
+def analytics():
+    """Analytics Lab - deep dive into player prop trends"""
+    session = get_session()
+
+    # Get model filter from request
+    model_filter = request.args.get('model', DEFAULT_MODEL_ID)
+    model_config = get_model_config(model_filter)
+
+    # Get unique players who have plays
+    players = session.query(Play.player_name).filter(
+        Play.model_name == model_filter
+    ).distinct().order_by(Play.player_name).all()
+    players = [p[0] for p in players]
+
+    # Get unique teams (from players table via prop_line)
+    teams = session.query(Team.abbreviation).order_by(Team.abbreviation).all()
+    teams = [t[0] for t in teams]
+
+    session.close()
+
+    return render_template('analytics.html',
+                         model_filter=model_filter,
+                         model_config=model_config,
+                         players=players,
+                         teams=teams)
+
+
+@app.route('/api/analytics')
+def api_analytics():
+    """API endpoint for analytics data"""
+    from flask import jsonify
+
+    session = get_session()
+
+    # Get filters
+    model_filter = request.args.get('model', DEFAULT_MODEL_ID)
+    player = request.args.get('player', '')
+    stat_type = request.args.get('stat_type', '')
+    team = request.args.get('team', '')
+    outcome = request.args.get('outcome', '')
+    days = request.args.get('days', '30')
+
+    # Build query
+    query = session.query(Play).filter(Play.model_name == model_filter)
+
+    # Apply filters
+    if player:
+        query = query.filter(Play.player_name.ilike(f'%{player}%'))
+
+    if stat_type:
+        query = query.filter(Play.stat_type == stat_type)
+
+    if outcome == 'win':
+        query = query.filter(Play.was_correct == True)
+    elif outcome == 'loss':
+        query = query.filter(Play.was_correct == False)
+    elif outcome == 'pending':
+        query = query.filter(Play.was_correct == None)
+
+    # Date filter
+    if days != 'all':
+        try:
+            days_int = int(days)
+            cutoff = datetime.now() - timedelta(days=days_int)
+            query = query.filter(Play.created_at >= cutoff)
+        except ValueError:
+            pass
+
+    # Team filter - need to join through prop_line -> player -> team
+    if team:
+        query = query.join(PropLine, Play.prop_line_id == PropLine.id).join(
+            Player, PropLine.player_id == Player.id
+        ).join(Team, Player.team_id == Team.id).filter(
+            Team.abbreviation == team
+        )
+
+    # Order by date descending (newest first)
+    plays = query.order_by(desc(Play.created_at)).all()
+
+    # Calculate summary stats
+    total_plays = len(plays)
+    wins = len([p for p in plays if p.was_correct == True])
+    losses = len([p for p in plays if p.was_correct == False])
+    graded = wins + losses
+    win_rate = round((wins / graded * 100), 1) if graded > 0 else 0
+
+    # Calculate total profit
+    total_profit = 0
+    for play in plays:
+        if play.was_correct is not None:
+            bet_amount = play.bet_amount if play.bet_amount else 10.0
+            odds = play.over_odds if play.recommendation == 'OVER' else play.under_odds
+            if play.was_correct and odds:
+                if odds < 0:
+                    total_profit += bet_amount * (100 / abs(odds))
+                else:
+                    total_profit += bet_amount * (odds / 100)
+            elif not play.was_correct:
+                total_profit -= bet_amount
+
+    # Calculate average deviation (actual vs line)
+    deviations = []
+    for p in plays:
+        if p.actual_result is not None and p.line_value is not None:
+            deviations.append(p.actual_result - p.line_value)
+    avg_deviation = sum(deviations) / len(deviations) if deviations else 0
+
+    # Format plays for response
+    plays_data = []
+    for p in plays:
+        # Calculate profit for this play
+        profit = None
+        if p.was_correct is not None:
+            bet_amount = p.bet_amount if p.bet_amount else 10.0
+            odds = p.over_odds if p.recommendation == 'OVER' else p.under_odds
+            if p.was_correct and odds:
+                if odds < 0:
+                    profit = bet_amount * (100 / abs(odds))
+                else:
+                    profit = bet_amount * (odds / 100)
+            elif not p.was_correct:
+                profit = -bet_amount
+
+        plays_data.append({
+            'id': p.id,
+            'date': p.created_at.strftime('%m/%d') if p.created_at else '',
+            'player_name': p.player_name,
+            'stat_type': p.stat_type,
+            'line_value': p.line_value,
+            'expected_value': p.expected_value,
+            'actual_result': p.actual_result,
+            'recommendation': p.recommendation,
+            'was_correct': p.was_correct,
+            'profit': round(profit, 2) if profit is not None else None,
+            'z_score': round(p.z_score, 2) if p.z_score else None,
+            'confidence': p.confidence
+        })
+
+    session.close()
+
+    return jsonify({
+        'filters': {
+            'player': player,
+            'stat_type': stat_type,
+            'team': team,
+            'outcome': outcome,
+            'days': days
+        },
+        'summary': {
+            'total_plays': total_plays,
+            'record': f'{wins}-{losses}',
+            'win_rate': win_rate,
+            'total_profit': round(total_profit, 2),
+            'avg_deviation': round(avg_deviation, 2)
+        },
+        'plays': plays_data
+    })
+
+
 @app.route('/api/games-by-date')
 def api_games_by_date():
     """API endpoint to get games for a specific date"""

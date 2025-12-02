@@ -623,6 +623,7 @@
                 <a href="/" {% if request.path == '/' or request.path.startswith('/plays/today') or request.path.startswith('/plays/upcoming') %}class="active"{% endif %}>Upcoming</a>
                 <a href="/plays/history" {% if request.path.startswith('/plays/history') %}class="active"{% endif %}>History</a>
                 <a href="/stats" {% if request.path == '/stats' %}class="active"{% endif %}>Stats</a>
+                <a href="/analytics" {% if request.path == '/analytics' %}class="active"{% endif %}>Analytics</a>
 
                 <!-- Model Switcher - server-side rendered based on URL param -->
                 {% set current_model = request.args.get('model', 'pulsar_v1') %}
