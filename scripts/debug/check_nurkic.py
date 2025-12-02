@@ -16,7 +16,7 @@ print("ALL NURKIC PLAYS IN DATABASE")
 print("=" * 80)
 
 plays = session.query(Play).filter(
-    Play.player_name.ilike('%nurkic%')
+    Play.player_name.ilike('%nurki%')
 ).order_by(desc(Play.created_at)).all()
 
 print(f"\nFound {len(plays)} Nurkic plays:\n")
