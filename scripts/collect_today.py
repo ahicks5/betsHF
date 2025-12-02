@@ -65,7 +65,14 @@ def initialize_teams_and_players():
 
 
 def collect_todays_games_and_props():
-    """Fetch today's games and all player props"""
+    """
+    Fetch today's games and all player props.
+
+    This function saves ALL prop lines from all bookmakers.
+    - Old props are marked as is_latest=False (kept for history)
+    - New props are added with is_latest=True
+    - Duplicate props (same player+stat+game+bookmaker+line) are skipped
+    """
     session = get_session()
     odds_client = OddsApiClient()
 
@@ -79,8 +86,11 @@ def collect_todays_games_and_props():
         close_session()
         return
 
-    # Mark old props as not latest
-    session.query(PropLine).update({PropLine.is_latest: False})
+    # Mark old props as not latest (but keep them for history)
+    old_count = session.query(PropLine).filter(PropLine.is_latest == True).count()
+    session.query(PropLine).filter(PropLine.is_latest == True).update({PropLine.is_latest: False})
+    if old_count > 0:
+        print(f"[OK] Marked {old_count} existing props as historical")
 
     # Store props
     props_stored = 0

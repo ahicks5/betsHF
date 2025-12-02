@@ -186,11 +186,52 @@ def run_find_plays():
     analyze_all_props()
 
 
+def run_lock_started_games():
+    """Lock plays for games that have started"""
+    print("\n" + "=" * 60)
+    print("LOCKING PLAYS FOR STARTED GAMES")
+    print("=" * 60)
+
+    from database.db import get_session
+    from database.models import Play, PropLine, Game
+
+    session = get_session()
+    now = datetime.now(pytz.utc)
+
+    # Find all unlocked plays where the game has started
+    plays_to_lock = session.query(Play).join(
+        PropLine, Play.prop_line_id == PropLine.id
+    ).join(
+        Game, PropLine.game_id == Game.id
+    ).filter(
+        Play.is_locked == False,  # Not yet locked
+        Game.game_date < now  # Game has started (game_date is in the past)
+    ).all()
+
+    if not plays_to_lock:
+        print("No plays to lock")
+        session.close()
+        return
+
+    locked_count = 0
+    for play in plays_to_lock:
+        play.is_locked = True
+        play.locked_at = datetime.utcnow()
+        locked_count += 1
+
+    session.commit()
+    print(f"[OK] Locked {locked_count} plays")
+    session.close()
+
+
 def run_grade_results():
     """Run result grading"""
     print("\n" + "=" * 60)
     print("GRADING RESULTS")
     print("=" * 60)
+
+    # First lock any plays that should be locked
+    run_lock_started_games()
 
     from scripts.collect_results import collect_results_for_date
     collect_results_for_date()  # None = all ungraded

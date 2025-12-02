@@ -208,6 +208,11 @@ def collect_results_for_date(target_date=None, days_back=1):
             play.was_correct = was_correct
             play.result_collected_at = datetime.utcnow()
 
+            # Lock the play since we now have results
+            if not play.is_locked:
+                play.is_locked = True
+                play.locked_at = datetime.utcnow()
+
             if was_correct is None:
                 result_str = "SKIP"
             else:

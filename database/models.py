@@ -108,7 +108,14 @@ class Play(Base):
     # Tracking
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # Future: actual results for backtesting
+    # Play state: OPEN -> LOCKED -> GRADED
+    # OPEN: Game hasn't started, can update with better lines
+    # LOCKED: Game started, waiting for results (is_locked=True, was_correct=None)
+    # GRADED: Has results (was_correct is not None)
+    is_locked = Column(Boolean, default=False, nullable=False)
+    locked_at = Column(DateTime, nullable=True)  # When the play was locked
+
+    # Results
     actual_result = Column(Float, nullable=True)
     result_collected_at = Column(DateTime, nullable=True)
     was_correct = Column(Boolean, nullable=True)

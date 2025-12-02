@@ -106,11 +106,52 @@ def export_detailed_csv(analyses, filename=None):
     return filename
 
 
+def to_python_type(val):
+    """Convert numpy types to Python native types for PostgreSQL compatibility"""
+    if val is None:
+        return None
+    # Handle numpy types
+    if hasattr(val, 'item'):
+        return val.item()  # Converts np.float64 -> float, np.int64 -> int
+    return val
+
+
+def is_better_line(new_analysis, existing_play):
+    """
+    Determine if the new line is more favorable than the existing play.
+
+    For OVER bets: lower line is better (easier to hit)
+    For UNDER bets: higher line is better (easier to hit)
+
+    Returns True if new line is better, False otherwise.
+    """
+    new_line = float(new_analysis['line_value'])
+    old_line = float(existing_play.line_value)
+    recommendation = new_analysis['recommendation']
+
+    if recommendation == 'OVER':
+        # Lower line is better for OVER (25.5 is better than 26.5)
+        return new_line < old_line
+    elif recommendation == 'UNDER':
+        # Higher line is better for UNDER (26.5 is better than 25.5)
+        return new_line > old_line
+
+    return False
+
+
 def save_plays_to_db(session, analyses_with_props, model_id):
-    """Save analyzed plays to the database for a specific model"""
+    """
+    Save analyzed plays to the database for a specific model.
+
+    UPSERT logic:
+    - If no play exists for player+stat+model+game: INSERT
+    - If play exists but new line is better: UPDATE (overwrite)
+    - If play exists and is_locked=True: SKIP (game has started, can't change)
+    - If play exists and new line is not better: SKIP
+    """
     saved_count = 0
+    updated_count = 0
     skipped_count = 0
-    duplicate_count = 0
 
     for item in analyses_with_props:
         analysis = item['analysis']
@@ -124,32 +165,47 @@ def save_plays_to_db(session, analyses_with_props, model_id):
             continue
 
         try:
-            # Check if play already exists for this player + stat + model combination TODAY
-            # Check both graded and ungraded plays from today to prevent duplicates
-            from datetime import date
-            today_start = datetime.combine(date.today(), datetime.min.time())
-
-            existing_play = session.query(Play).filter(
+            # Check if play already exists for this player + stat + model + GAME combination
+            existing_play = session.query(Play).join(
+                PropLine, Play.prop_line_id == PropLine.id
+            ).filter(
                 Play.player_name == analysis['player_name'],
                 Play.stat_type == analysis['stat_type'],
                 Play.model_name == model_id,
-                Play.created_at >= today_start  # Any play from today (graded or not)
+                PropLine.game_id == prop.game_id  # Same game
             ).first()
 
             if existing_play:
-                duplicate_count += 1
+                # Don't overwrite locked plays (game has started)
+                if existing_play.is_locked:
+                    skipped_count += 1
+                    continue
+
+                # Check if new line is better
+                if is_better_line(analysis, existing_play):
+                    # UPDATE existing play with better line
+                    existing_play.prop_line_id = prop.id
+                    existing_play.line_value = float(analysis['line_value'])
+                    existing_play.season_avg = to_python_type(analysis['season_avg'])
+                    existing_play.last5_avg = to_python_type(analysis['recent_avg'])
+                    existing_play.expected_value = to_python_type(analysis['expected_value'])
+                    existing_play.std_dev = to_python_type(analysis['std_dev'])
+                    existing_play.deviation = to_python_type(analysis['deviation'])
+                    existing_play.z_score = to_python_type(analysis['z_score'])
+                    existing_play.games_played = int(analysis.get('games_played', 0))
+                    existing_play.recommendation = analysis['recommendation']
+                    existing_play.confidence = confidence
+                    existing_play.bookmaker = analysis['bookmaker']
+                    existing_play.over_odds = int(analysis.get('over_odds')) if analysis.get('over_odds') is not None else None
+                    existing_play.under_odds = int(analysis.get('under_odds')) if analysis.get('under_odds') is not None else None
+                    existing_play.bet_amount = bet_amount
+                    updated_count += 1
+                else:
+                    # Existing line is same or better, skip
+                    skipped_count += 1
                 continue
 
-            # Convert numpy types to Python native types for PostgreSQL compatibility
-            def to_python_type(val):
-                """Convert numpy types to Python native types"""
-                if val is None:
-                    return None
-                # Handle numpy types
-                if hasattr(val, 'item'):
-                    return val.item()  # Converts np.float64 -> float, np.int64 -> int
-                return val
-
+            # No existing play - INSERT new one
             play = Play(
                 prop_line_id=prop.id,
                 player_name=analysis['player_name'],
@@ -179,8 +235,8 @@ def save_plays_to_db(session, analyses_with_props, model_id):
             continue
 
     session.commit()
-    if duplicate_count > 0:
-        print(f"   (Skipped {duplicate_count} duplicates)")
+    if updated_count > 0:
+        print(f"   (Updated {updated_count} plays with better lines)")
     return saved_count, skipped_count
 
 
@@ -203,17 +259,10 @@ def analyze_all_props(model_ids=None):
     print("=== Analyzing Today's Props ===\n")
     print(f"Running models: {', '.join(model_ids)}\n")
 
-    # Clear out only UNGRADED plays for the models we're running
-    # Keep historical plays that have results (was_correct is not None)
-    for model_id in model_ids:
-        ungraded_plays = session.query(Play).filter(
-            Play.was_correct == None,
-            Play.model_name == model_id
-        ).all()
-        for play in ungraded_plays:
-            session.delete(play)
-        session.commit()
-        print(f"[OK] Cleared {len(ungraded_plays)} ungraded {model_id} plays from database")
+    # NOTE: We no longer clear ungraded plays - instead we UPSERT:
+    # - New plays get inserted
+    # - Existing plays get updated if a better line is found
+    # - Graded plays are never modified
 
     # Get all latest props
     props = session.query(PropLine).filter_by(is_latest=True).all()
