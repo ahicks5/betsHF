@@ -124,13 +124,16 @@ def save_plays_to_db(session, analyses_with_props, model_id):
             continue
 
         try:
-            # Check if play already exists for this player + stat + model combination
-            # Only check UNGRADED plays - we want to allow the same player/stat on different days
+            # Check if play already exists for this player + stat + model combination TODAY
+            # Check both graded and ungraded plays from today to prevent duplicates
+            from datetime import date
+            today_start = datetime.combine(date.today(), datetime.min.time())
+
             existing_play = session.query(Play).filter(
                 Play.player_name == analysis['player_name'],
                 Play.stat_type == analysis['stat_type'],
                 Play.model_name == model_id,
-                Play.was_correct == None  # Only check ungraded (today's) plays
+                Play.created_at >= today_start  # Any play from today (graded or not)
             ).first()
 
             if existing_play:

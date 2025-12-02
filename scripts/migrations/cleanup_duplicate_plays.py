@@ -2,7 +2,7 @@
 Migration: Clean up duplicate plays
 
 This script finds and removes duplicate plays, keeping only one play per
-player_name + stat_type + model_name combination.
+player_name + stat_type + model_name + DATE combination.
 
 For duplicates, it keeps the one with results (was_correct is not None),
 or the oldest one if none have results.
@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from database.db import get_session
 from database.models import Play
-from sqlalchemy import func, text
+from sqlalchemy import func, text, cast, Date
 
 
 def has_model_name_column(session):
@@ -45,30 +45,34 @@ def cleanup_duplicates(dry_run=False):
     has_model = has_model_name_column(session)
 
     if has_model:
-        print("\nGrouping by: player_name + stat_type + model_name")
-        # Find all player + stat + model combinations that have duplicates
+        print("\nGrouping by: player_name + stat_type + model_name + date")
+        # Find all player + stat + model + date combinations that have duplicates
         duplicates = session.query(
             Play.player_name,
             Play.stat_type,
             Play.model_name,
+            cast(Play.created_at, Date).label('play_date'),
             func.count(Play.id).label('count')
         ).group_by(
             Play.player_name,
             Play.stat_type,
-            Play.model_name
+            Play.model_name,
+            cast(Play.created_at, Date)
         ).having(
             func.count(Play.id) > 1
         ).all()
     else:
-        print("\nGrouping by: player_name + stat_type only (model_name column not found)")
-        # Find all player + stat combinations that have duplicates
+        print("\nGrouping by: player_name + stat_type + date only (model_name column not found)")
+        # Find all player + stat + date combinations that have duplicates
         duplicates = session.query(
             Play.player_name,
             Play.stat_type,
+            cast(Play.created_at, Date).label('play_date'),
             func.count(Play.id).label('count')
         ).group_by(
             Play.player_name,
-            Play.stat_type
+            Play.stat_type,
+            cast(Play.created_at, Date)
         ).having(
             func.count(Play.id) > 1
         ).all()
@@ -78,27 +82,29 @@ def cleanup_duplicates(dry_run=False):
         session.close()
         return
 
-    print(f"\nFound {len(duplicates)} player+stat combinations with duplicates")
+    print(f"\nFound {len(duplicates)} player+stat+date combinations with duplicates")
 
     total_removed = 0
     plays_to_delete = []
 
     for dup_row in duplicates:
         if has_model:
-            player_name, stat_type, model_name, count = dup_row
-            # Get all plays for this combination
+            player_name, stat_type, model_name, play_date, count = dup_row
+            # Get all plays for this combination on this date
             plays = session.query(Play).filter(
                 Play.player_name == player_name,
                 Play.stat_type == stat_type,
-                Play.model_name == model_name
+                Play.model_name == model_name,
+                cast(Play.created_at, Date) == play_date
             ).order_by(Play.created_at).all()
         else:
-            player_name, stat_type, count = dup_row
+            player_name, stat_type, play_date, count = dup_row
             model_name = "N/A"
-            # Get all plays for this player + stat
+            # Get all plays for this player + stat on this date
             plays = session.query(Play).filter(
                 Play.player_name == player_name,
-                Play.stat_type == stat_type
+                Play.stat_type == stat_type,
+                cast(Play.created_at, Date) == play_date
             ).order_by(Play.created_at).all()
 
         # Determine which one to keep:
@@ -119,7 +125,7 @@ def cleanup_duplicates(dry_run=False):
                 plays_to_delete.append(play)
                 total_removed += 1
 
-        print(f"  {player_name} {stat_type} ({model_name}): {count} copies -> keeping 1")
+        print(f"  {play_date} - {player_name} {stat_type} ({model_name}): {count} copies -> keeping 1")
 
     print(f"\nTotal plays to remove: {total_removed}")
 
@@ -142,11 +148,13 @@ def cleanup_duplicates(dry_run=False):
             Play.player_name,
             Play.stat_type,
             Play.model_name,
+            cast(Play.created_at, Date),
             func.count(Play.id).label('count')
         ).group_by(
             Play.player_name,
             Play.stat_type,
-            Play.model_name
+            Play.model_name,
+            cast(Play.created_at, Date)
         ).having(
             func.count(Play.id) > 1
         ).count()
@@ -154,10 +162,12 @@ def cleanup_duplicates(dry_run=False):
         remaining_dups = session.query(
             Play.player_name,
             Play.stat_type,
+            cast(Play.created_at, Date),
             func.count(Play.id).label('count')
         ).group_by(
             Play.player_name,
-            Play.stat_type
+            Play.stat_type,
+            cast(Play.created_at, Date)
         ).having(
             func.count(Play.id) > 1
         ).count()
