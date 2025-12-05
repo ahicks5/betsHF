@@ -44,8 +44,8 @@ def main():
     if not args.skip_stats:
         print("\n[2/3] Syncing NBA stats...")
         print("-" * 40)
-        from scripts.sync_nba_stats import sync_all_player_stats
-        sync_all_player_stats()
+        from scripts.sync_nba_stats import main as sync_nba_stats
+        sync_nba_stats()
     else:
         print("\n[2/3] Skipping NBA stats sync (--skip-stats)")
 

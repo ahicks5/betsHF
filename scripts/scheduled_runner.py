@@ -172,8 +172,8 @@ def run_sync_stats():
     print("SYNCING NBA STATS")
     print("=" * 60)
 
-    from scripts.sync_nba_stats import sync_all_player_stats
-    sync_all_player_stats()
+    from scripts.sync_nba_stats import main as sync_nba_stats
+    sync_nba_stats()
 
 
 def run_find_plays():
