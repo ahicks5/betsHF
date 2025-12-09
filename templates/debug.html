@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Debug Dashboard - TakeFreePoints{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem; color: var(--text-primary);">Debug Dashboard</h2>
+
+<!-- System Status -->
+<div class="stat-grid">
+    <div class="stat-box">
+        <h3>{{ ungraded }}</h3>
+        <p>Ungraded Plays</p>
+    </div>
+    <div class="stat-box">
+        <h3>{{ open_plays }}</h3>
+        <p>Open (Updatable)</p>
+    </div>
+    <div class="stat-box">
+        <h3>{{ locked_ungraded }}</h3>
+        <p>Locked (Waiting)</p>
+    </div>
+</div>
+
+<!-- Model Comparison -->
+<div class="card">
+    <h3>Model Performance Comparison</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Record</th>
+                <th>Win %</th>
+                <th>Profit</th>
+                <th>ROI</th>
+                <th>OVER</th>
+                <th>UNDER</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for model_id, stats in model_stats.items() %}
+            <tr>
+                <td>
+                    <span style="color: {% if model_id == 'pulsar_v1' %}var(--accent-green){% else %}var(--accent-purple){% endif %}; font-weight: 600;">
+                        {{ stats.config.icon }} {{ stats.config.display_name }}
+                    </span>
+                </td>
+                <td>{{ stats.wins }}-{{ stats.losses }}</td>
+                <td>{{ "%.1f"|format(stats.win_rate) }}%</td>
+                <td style="color: {% if stats.profit >= 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: 600;">
+                    {{ "$%.2f"|format(stats.profit) if stats.profit >= 0 else "-$%.2f"|format(stats.profit|abs) }}
+                </td>
+                <td style="color: {% if stats.roi >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+                    {{ "%.1f"|format(stats.roi) }}%
+                </td>
+                <td>{{ stats.over_wins }}/{{ stats.over_total }} ({{ "%.0f"|format(stats.over_win_rate) }}%)</td>
+                <td>{{ stats.under_wins }}/{{ stats.under_total }} ({{ "%.0f"|format(stats.under_win_rate) }}%)</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Z-Score Analysis -->
+{% for model_id, stats in model_stats.items() %}
+<div class="card">
+    <h3 style="color: {% if model_id == 'pulsar_v1' %}var(--accent-green){% else %}var(--accent-purple){% endif %};">
+        {{ stats.config.icon }} {{ stats.config.display_name }} - Z-Score Breakdown
+    </h3>
+    <p style="margin-bottom: 1rem; font-size: 0.9rem;">Higher z-score = stronger statistical signal. Which ranges are actually profitable?</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Z-Score Range</th>
+                <th>Signal</th>
+                <th>Plays</th>
+                <th>Record</th>
+                <th>Win %</th>
+                <th>Profit</th>
+                <th>ROI</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for range_name in ['1.5+', '1.0-1.5', '0.75-1.0', '0.5-0.75'] %}
+            {% set z = stats.z_stats[range_name] %}
+            <tr>
+                <td style="font-family: 'JetBrains Mono', monospace;">{{ range_name }}&#963;</td>
+                <td>
+                    {% if range_name == '1.5+' %}
+                    <span style="color: var(--accent-green);">Strongest</span>
+                    {% elif range_name == '1.0-1.5' %}
+                    <span style="color: var(--warning);">Strong</span>
+                    {% elif range_name == '0.75-1.0' %}
+                    <span style="color: var(--text-secondary);">Medium</span>
+                    {% else %}
+                    <span style="color: var(--text-dim);">Weakest</span>
+                    {% endif %}
+                </td>
+                <td>{{ z.total }}</td>
+                <td>{{ z.wins }}-{{ z.total - z.wins }}</td>
+                <td>{{ "%.1f"|format(z.win_rate) }}%</td>
+                <td style="color: {% if z.profit >= 0 %}var(--success){% else %}var(--danger){% endif %}; font-weight: 600;">
+                    {{ "$%.2f"|format(z.profit) if z.profit >= 0 else "-$%.2f"|format(z.profit|abs) }}
+                </td>
+                <td style="color: {% if z.roi >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+                    {{ "%.1f"|format(z.roi) }}%
+                </td>
+                <td>
+                    {% if z.roi > 5 %}
+                    <span class="badge badge-over">Profitable</span>
+                    {% elif z.roi > -5 %}
+                    <span class="badge badge-no-play">Break Even</span>
+                    {% else %}
+                    <span class="badge badge-high">Losing</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endfor %}
+
+<!-- Strategy Recommendations -->
+<div class="card" style="background: linear-gradient(135deg, rgba(0, 255, 136, 0.05), rgba(167, 139, 250, 0.05)); border-color: rgba(0, 255, 136, 0.2);">
+    <h3>Strategy Recommendations</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+        {% for model_id, stats in model_stats.items() %}
+        <div>
+            <h4 style="color: {% if model_id == 'pulsar_v1' %}var(--accent-green){% else %}var(--accent-purple){% endif %}; margin-bottom: 0.5rem;">
+                {{ stats.config.icon }} {{ stats.config.display_name }}
+            </h4>
+            <ul style="margin-left: 1.2rem;">
+                {% set best_z = None %}
+                {% set best_roi = -999 %}
+                {% for range_name, z in stats.z_stats.items() %}
+                    {% if z.roi > best_roi and z.total >= 10 %}
+                        {% set best_roi = z.roi %}
+                        {% set best_z = range_name %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if stats.z_stats['1.5+'].roi > 0 and stats.z_stats['1.5+'].total >= 10 %}
+                <li style="color: var(--success);"><strong>1.5+ z-score is profitable!</strong> Consider raising minimum threshold.</li>
+                {% endif %}
+
+                {% if stats.over_win_rate > stats.under_win_rate + 5 %}
+                <li>OVER bets outperforming UNDER ({{ "%.0f"|format(stats.over_win_rate) }}% vs {{ "%.0f"|format(stats.under_win_rate) }}%)</li>
+                {% elif stats.under_win_rate > stats.over_win_rate + 5 %}
+                <li>UNDER bets outperforming OVER ({{ "%.0f"|format(stats.under_win_rate) }}% vs {{ "%.0f"|format(stats.over_win_rate) }}%)</li>
+                {% endif %}
+
+                {% if stats.roi < -10 %}
+                <li style="color: var(--danger);">ROI is {{ "%.1f"|format(stats.roi) }}% - consider tightening filters or flipping direction</li>
+                {% endif %}
+
+                {% if stats.win_rate < 40 %}
+                <li style="color: var(--warning);">Win rate below 40% - need 52.4% to break even at -110</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <h3>Understanding the Data</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+        <div>
+            <h4 style="color: var(--accent-blue);">Play States</h4>
+            <ul style="margin-left: 1.2rem; margin-top: 0.5rem;">
+                <li><strong>Open:</strong> Game hasn't started, can update with better lines</li>
+                <li><strong>Locked:</strong> Game started, waiting for results</li>
+                <li><strong>Graded:</strong> Has final win/loss result</li>
+            </ul>
+        </div>
+        <div>
+            <h4 style="color: var(--accent-blue);">Break-Even Requirements</h4>
+            <ul style="margin-left: 1.2rem; margin-top: 0.5rem;">
+                <li><strong>-110 odds:</strong> Need 52.4% win rate</li>
+                <li><strong>-115 odds:</strong> Need 53.5% win rate</li>
+                <li><strong>-120 odds:</strong> Need 54.5% win rate</li>
+            </ul>
+        </div>
+        <div>
+            <h4 style="color: var(--accent-blue);">Z-Score Meaning</h4>
+            <ul style="margin-left: 1.2rem; margin-top: 0.5rem;">
+                <li><strong>0.5-0.75:</strong> Slight edge detected</li>
+                <li><strong>0.75-1.0:</strong> Moderate edge</li>
+                <li><strong>1.0-1.5:</strong> Strong edge</li>
+                <li><strong>1.5+:</strong> Very strong statistical anomaly</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

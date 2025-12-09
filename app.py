@@ -1391,5 +1391,124 @@ def api_game_analysis(game_id):
     })
 
 
+@app.route('/debug')
+def debug_dashboard():
+    """Debug dashboard with model comparison and system diagnostics"""
+    session = get_session()
+
+    # Get all models performance comparison
+    model_stats = {}
+    for model_id in get_all_models().keys():
+        config = get_model_config(model_id)
+        bet_amount = config.get('bet_amount', 10)
+
+        plays = session.query(Play).filter(
+            Play.model_name == model_id,
+            Play.was_correct != None
+        ).all()
+
+        wins = len([p for p in plays if p.was_correct == True])
+        losses = len([p for p in plays if p.was_correct == False])
+        total = wins + losses
+
+        # Calculate profit
+        profit = 0
+        for p in plays:
+            if p.was_correct:
+                odds = p.over_odds if p.recommendation == 'OVER' else p.under_odds
+                if odds and odds < 0:
+                    profit += bet_amount * (100 / abs(odds))
+                elif odds and odds > 0:
+                    profit += bet_amount * (odds / 100)
+                else:
+                    profit += bet_amount
+            else:
+                profit -= bet_amount
+
+        # Over vs Under breakdown
+        over_plays = [p for p in plays if p.recommendation == 'OVER']
+        under_plays = [p for p in plays if p.recommendation == 'UNDER']
+        over_wins = len([p for p in over_plays if p.was_correct == True])
+        under_wins = len([p for p in under_plays if p.was_correct == True])
+
+        # Z-score breakdown
+        z_ranges = {'1.5+': [], '1.0-1.5': [], '0.75-1.0': [], '0.5-0.75': []}
+        for p in plays:
+            abs_z = abs(p.z_score) if p.z_score else 0
+            if abs_z >= 1.5:
+                z_ranges['1.5+'].append(p)
+            elif abs_z >= 1.0:
+                z_ranges['1.0-1.5'].append(p)
+            elif abs_z >= 0.75:
+                z_ranges['0.75-1.0'].append(p)
+            elif abs_z >= 0.5:
+                z_ranges['0.5-0.75'].append(p)
+
+        z_stats = {}
+        for range_name, range_plays in z_ranges.items():
+            range_wins = len([p for p in range_plays if p.was_correct == True])
+            range_total = len(range_plays)
+            range_profit = 0
+            for p in range_plays:
+                if p.was_correct:
+                    odds = p.over_odds if p.recommendation == 'OVER' else p.under_odds
+                    if odds and odds < 0:
+                        range_profit += bet_amount * (100 / abs(odds))
+                    elif odds and odds > 0:
+                        range_profit += bet_amount * (odds / 100)
+                    else:
+                        range_profit += bet_amount
+                else:
+                    range_profit -= bet_amount
+
+            z_stats[range_name] = {
+                'total': range_total,
+                'wins': range_wins,
+                'win_rate': (range_wins / range_total * 100) if range_total > 0 else 0,
+                'profit': round(range_profit, 2),
+                'roi': (range_profit / (range_total * bet_amount) * 100) if range_total > 0 else 0
+            }
+
+        model_stats[model_id] = {
+            'config': config,
+            'total': total,
+            'wins': wins,
+            'losses': losses,
+            'win_rate': (wins / total * 100) if total > 0 else 0,
+            'profit': round(profit, 2),
+            'roi': (profit / (total * bet_amount) * 100) if total > 0 else 0,
+            'over_total': len(over_plays),
+            'over_wins': over_wins,
+            'over_win_rate': (over_wins / len(over_plays) * 100) if over_plays else 0,
+            'under_total': len(under_plays),
+            'under_wins': under_wins,
+            'under_win_rate': (under_wins / len(under_plays) * 100) if under_plays else 0,
+            'z_stats': z_stats
+        }
+
+    # Get ungraded plays count
+    ungraded = session.query(Play).filter(Play.was_correct == None).count()
+
+    # Get locked but not graded
+    locked_ungraded = session.query(Play).filter(
+        Play.is_locked == True,
+        Play.was_correct == None
+    ).count()
+
+    # Get open plays
+    open_plays = session.query(Play).filter(
+        Play.is_locked == False,
+        Play.was_correct == None
+    ).count()
+
+    session.close()
+
+    return render_template('debug.html',
+                         model_stats=model_stats,
+                         ungraded=ungraded,
+                         locked_ungraded=locked_ungraded,
+                         open_plays=open_plays)
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
