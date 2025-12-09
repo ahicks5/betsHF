@@ -7,11 +7,13 @@ Sorted by strongest deviation (highest z-score)
 Supports multiple betting models:
 - pulsar_v1: Original model (flat $10, z > 0.5 threshold)
 - sentinel_v1: Conservative model (variable sizing, UNDER restrictions)
+- celestial_v1: Barbell + contrarian (bet extremes, fade middle z-scores)
 
 Usage:
     python scripts/find_plays.py                    # Run all models
     python scripts/find_plays.py --model pulsar_v1  # Run specific model
     python scripts/find_plays.py --model sentinel_v1
+    python scripts/find_plays.py --model celestial_v1
 """
 import sys
 import argparse
@@ -149,15 +151,19 @@ def save_plays_to_db(session, analyses_with_props, model_id):
     - If play exists and is_locked=True: SKIP (game has started, can't change)
     - If play exists and new line is not better: SKIP
     """
+    import copy  # Need deep copy to avoid mutating shared analysis dict
+
     saved_count = 0
     updated_count = 0
     skipped_count = 0
 
     for item in analyses_with_props:
-        analysis = item['analysis']
+        # IMPORTANT: Deep copy analysis so model-specific changes don't affect other models
+        analysis = copy.deepcopy(item['analysis'])
         prop = item['prop']
 
         # Apply model rules to determine if we should take this play
+        # NOTE: Some models (like Celestial) may modify analysis['recommendation']
         should_take, bet_amount, reason, confidence = apply_model_rules(model_id, analysis)
 
         if not should_take:
