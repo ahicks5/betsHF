@@ -634,6 +634,9 @@
                     <button onclick="setModel('sentinel_v1')" class="model-btn {% if current_model == 'sentinel_v1' %}active{% endif %}" data-model="sentinel_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
                         Sentinel 1.0
                     </button>
+                    <button onclick="setModel('celestial_v1')" class="model-btn {% if current_model == 'celestial_v1' %}active{% endif %}" data-model="celestial_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
+                        Celestial 1.0
+                    </button>
                 </div>
             </nav>
         </div>
@@ -665,6 +668,12 @@
             background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(167, 139, 250, 0.1));
             color: #a78bfa;
             box-shadow: 0 0 10px rgba(167, 139, 250, 0.2);
+        }
+
+        .model-btn.active[data-model="celestial_v1"] {
+            background: linear-gradient(135deg, rgba(244, 114, 182, 0.2), rgba(244, 114, 182, 0.1));
+            color: #f472b6;
+            box-shadow: 0 0 10px rgba(244, 114, 182, 0.2);
         }
 
         @media (max-width: 768px) {
