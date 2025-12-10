@@ -626,16 +626,16 @@
                 <a href="/analytics" {% if request.path == '/analytics' %}class="active"{% endif %}>Analytics</a>
 
                 <!-- Model Switcher - server-side rendered based on URL param -->
-                {% set current_model = request.args.get('model', 'pulsar_v1') %}
+                {% set current_model = request.args.get('model', 'pulsar_v2') %}
                 <div class="model-switcher" style="margin-left: auto; display: flex; gap: 0.4rem; background: var(--bg-secondary); border-radius: 8px; padding: 0.25rem; border: 1px solid var(--border);">
-                    <button onclick="setModel('pulsar_v1')" class="model-btn {% if current_model == 'pulsar_v1' %}active{% endif %}" data-model="pulsar_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
-                        Pulsar 1.0
+                    <button onclick="setModel('pulsar_v2')" class="model-btn {% if current_model == 'pulsar_v2' %}active{% endif %}" data-model="pulsar_v2" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
+                        Pulsar 2.0
                     </button>
-                    <button onclick="setModel('sentinel_v1')" class="model-btn {% if current_model == 'sentinel_v1' %}active{% endif %}" data-model="sentinel_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
-                        Sentinel 1.0
+                    <button onclick="setModel('sentinel_v2')" class="model-btn {% if current_model == 'sentinel_v2' %}active{% endif %}" data-model="sentinel_v2" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
+                        Sentinel 2.0
                     </button>
-                    <button onclick="setModel('celestial_v1')" class="model-btn {% if current_model == 'celestial_v1' %}active{% endif %}" data-model="celestial_v1" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
-                        Celestial 1.0
+                    <button onclick="setModel('celestial_v2')" class="model-btn {% if current_model == 'celestial_v2' %}active{% endif %}" data-model="celestial_v2" style="padding: 0.4rem 0.8rem; border: none; border-radius: 6px; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease;">
+                        Celestial 2.0
                     </button>
                 </div>
             </nav>
@@ -658,19 +658,19 @@
             color: var(--text-primary);
         }
 
-        .model-btn.active[data-model="pulsar_v1"] {
+        .model-btn.active[data-model="pulsar_v2"] {
             background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.1));
             color: #00ff88;
             box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
         }
 
-        .model-btn.active[data-model="sentinel_v1"] {
+        .model-btn.active[data-model="sentinel_v2"] {
             background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(167, 139, 250, 0.1));
             color: #a78bfa;
             box-shadow: 0 0 10px rgba(167, 139, 250, 0.2);
         }
 
-        .model-btn.active[data-model="celestial_v1"] {
+        .model-btn.active[data-model="celestial_v2"] {
             background: linear-gradient(135deg, rgba(244, 114, 182, 0.2), rgba(244, 114, 182, 0.1));
             color: #f472b6;
             box-shadow: 0 0 10px rgba(244, 114, 182, 0.2);

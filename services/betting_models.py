@@ -8,49 +8,95 @@ Each model can have different:
 - Display settings
 
 Model IDs:
+v1 Models (DEPRECATED - had incorrect under odds bug):
 - pulsar_v1: Original model - flat $10 bets, z-score > 0.5 threshold
 - sentinel_v1: Conservative model - variable sizing, UNDER restrictions
 - celestial_v1: Barbell + contrarian model - bet extremes, fade middle z-scores
+
+v2 Models (ACTIVE - fixed under odds, primary line selection):
+- pulsar_v2: Same strategy as v1, clean data
+- sentinel_v2: Same strategy as v1, clean data
+- celestial_v2: Same strategy as v1, clean data
 """
 
 
 # Model definitions
 MODELS = {
+    # ============================================
+    # V1 MODELS - DEPRECATED (under odds bug)
+    # Kept for historical data, hidden from UI
+    # ============================================
     'pulsar_v1': {
         'id': 'pulsar_v1',
         'display_name': 'Pulsar 1.0',
         'short_name': 'Pulsar',
-        'description': 'Original model: 50% season avg + 50% L5, bet toward Vegas line movement',
+        'description': '[DEPRECATED] Original model with under odds bug',
         'color': '#00ff88',  # Green
         'icon': '⚡',
         'default_bet': 10.0,
-        'active': True,
+        'active': False,  # Hidden from UI
     },
     'sentinel_v1': {
         'id': 'sentinel_v1',
         'display_name': 'Sentinel 1.0',
         'short_name': 'Sentinel',
-        'description': 'Conservative model: Variable bet sizing, UNDER restrictions',
+        'description': '[DEPRECATED] Conservative model with under odds bug',
         'color': '#a78bfa',  # Purple
         'icon': '🛡️',
-        'default_bet': 10.0,  # Base bet, varies by confidence
-        'active': True,
+        'default_bet': 10.0,
+        'active': False,  # Hidden from UI
     },
     'celestial_v1': {
         'id': 'celestial_v1',
         'display_name': 'Celestial 1.0',
         'short_name': 'Celestial',
-        'description': 'Barbell strategy: 1.5x bets on extremes (0.5-0.75σ, 1.5+σ), fade middle (0.75-1.5σ)',
+        'description': '[DEPRECATED] Barbell strategy with under odds bug',
+        'color': '#f472b6',  # Pink
+        'icon': '🌟',
+        'default_bet': 10.0,
+        'active': False,  # Hidden from UI
+        'flips_recommendation': True,
+    },
+
+    # ============================================
+    # V2 MODELS - ACTIVE (fixed under odds + primary line selection)
+    # Started fresh after bug fix on 2024-12-09
+    # ============================================
+    'pulsar_v2': {
+        'id': 'pulsar_v2',
+        'display_name': 'Pulsar 2.0',
+        'short_name': 'Pulsar',
+        'description': 'Flat $10 bets, z-score > 0.5 threshold, primary line selection',
+        'color': '#00ff88',  # Green
+        'icon': '⚡',
+        'default_bet': 10.0,
+        'active': True,
+    },
+    'sentinel_v2': {
+        'id': 'sentinel_v2',
+        'display_name': 'Sentinel 2.0',
+        'short_name': 'Sentinel',
+        'description': 'Conservative: Variable bet sizing, UNDER restrictions',
+        'color': '#a78bfa',  # Purple
+        'icon': '🛡️',
+        'default_bet': 10.0,
+        'active': True,
+    },
+    'celestial_v2': {
+        'id': 'celestial_v2',
+        'display_name': 'Celestial 2.0',
+        'short_name': 'Celestial',
+        'description': 'Barbell strategy: 1.5x bets on extremes, fade middle z-scores',
         'color': '#f472b6',  # Pink
         'icon': '🌟',
         'default_bet': 10.0,
         'active': True,
-        'flips_recommendation': True,  # Flag indicating this model can flip recommendations
+        'flips_recommendation': True,
     },
 }
 
 # Default model
-DEFAULT_MODEL = 'pulsar_v1'
+DEFAULT_MODEL = 'pulsar_v2'
 
 
 def get_model_config(model_id):
@@ -301,10 +347,16 @@ class CelestialV1Model:
 
 
 # Model class registry
+# v2 models use same logic as v1 - the difference is in the data (fixed under odds)
 MODEL_CLASSES = {
+    # V1 (deprecated)
     'pulsar_v1': PulsarV1Model,
     'sentinel_v1': SentinelV1Model,
     'celestial_v1': CelestialV1Model,
+    # V2 (active) - same logic, clean data
+    'pulsar_v2': PulsarV1Model,
+    'sentinel_v2': SentinelV1Model,
+    'celestial_v2': CelestialV1Model,
 }
 
 

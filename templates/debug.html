@@ -40,7 +40,7 @@
             {% for model_id, stats in model_stats.items() %}
             <tr>
                 <td>
-                    <span style="color: {% if model_id == 'pulsar_v1' %}var(--accent-green){% else %}var(--accent-purple){% endif %}; font-weight: 600;">
+                    <span style="color: {{ stats.config.color }}; font-weight: 600;">
                         {{ stats.config.icon }} {{ stats.config.display_name }}
                     </span>
                 </td>
@@ -63,7 +63,7 @@
 <!-- Z-Score Analysis -->
 {% for model_id, stats in model_stats.items() %}
 <div class="card">
-    <h3 style="color: {% if model_id == 'pulsar_v1' %}var(--accent-green){% else %}var(--accent-purple){% endif %};">
+    <h3 style="color: {{ stats.config.color }};">
         {{ stats.config.icon }} {{ stats.config.display_name }} - Z-Score Breakdown
     </h3>
     <p style="margin-bottom: 1rem; font-size: 0.9rem;">Higher z-score = stronger statistical signal. Which ranges are actually profitable?</p>
@@ -127,7 +127,7 @@
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
         {% for model_id, stats in model_stats.items() %}
         <div>
-            <h4 style="color: {% if model_id == 'pulsar_v1' %}var(--accent-green){% else %}var(--accent-purple){% endif %}; margin-bottom: 0.5rem;">
+            <h4 style="color: {{ stats.config.color }}; margin-bottom: 0.5rem;">
                 {{ stats.config.icon }} {{ stats.config.display_name }}
             </h4>
             <ul style="margin-left: 1.2rem;">
