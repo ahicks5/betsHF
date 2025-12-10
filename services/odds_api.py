@@ -75,6 +75,10 @@ class OddsApiClient:
         """
         Parse the props response into a clean format
         Returns list of prop dictionaries
+
+        IMPORTANT: Must match Over and Under at the SAME line value.
+        Some bookmakers (Bovada) offer alternate lines (multiple line values
+        per player), so we can't just match by player name alone.
         """
         props = []
 
@@ -99,19 +103,25 @@ class OddsApiClient:
                 if not prop_type:
                     continue
 
+                # Build a lookup of unders by (player_name, line_value)
+                # This ensures we match the correct under for alternate lines
+                under_lookup = {}
                 for outcome in market.get('outcomes', []):
-                    player_name = outcome.get('description')
+                    if outcome['name'] == 'Under':
+                        player_name = outcome.get('description')
+                        line_value = outcome.get('point')
+                        under_odds = outcome.get('price')
+                        under_lookup[(player_name, line_value)] = under_odds
 
+                # Now process overs and match with correct unders
+                for outcome in market.get('outcomes', []):
                     if outcome['name'] == 'Over':
+                        player_name = outcome.get('description')
                         line_value = outcome.get('point')
                         over_odds = outcome.get('price')
 
-                        # Find corresponding under
-                        under_odds = None
-                        for under_outcome in market.get('outcomes', []):
-                            if under_outcome.get('description') == player_name and under_outcome['name'] == 'Under':
-                                under_odds = under_outcome.get('price')
-                                break
+                        # Find corresponding under at SAME line value
+                        under_odds = under_lookup.get((player_name, line_value))
 
                         props.append({
                             'player_name': player_name,

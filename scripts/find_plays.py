@@ -326,22 +326,47 @@ def analyze_all_props(model_ids=None):
             continue
 
     # Deduplicate props - keep only ONE prop per player+stat
-    # Pick the play with the STRONGEST SIGNAL (highest absolute z-score)
+    # Pick the PRIMARY LINE: closest to -110/-110 odds (most balanced/standard line)
+    # This filters out alternate lines and picks the consensus line across all bookmakers
     player_stat_best = {}
     player_stat_best_with_props = {}
+
+    def odds_distance_from_standard(over_odds, under_odds):
+        """
+        Calculate how far odds are from standard -110/-110.
+        Lower is better (closer to primary line).
+        Returns sum of absolute distances from -110.
+        """
+        if over_odds is None or under_odds is None:
+            return float('inf')  # No odds = worst score
+
+        # Target is -110 for both sides
+        # Distance = |over - (-110)| + |under - (-110)|
+        over_dist = abs(over_odds - (-110))
+        under_dist = abs(under_odds - (-110))
+        return over_dist + under_dist
 
     for item in all_analyses_with_props:
         analysis = item['analysis']
         key = (analysis['player_name'], analysis['stat_type'])
+
+        current_distance = odds_distance_from_standard(
+            analysis.get('over_odds'),
+            analysis.get('under_odds')
+        )
 
         if key not in player_stat_best:
             player_stat_best[key] = analysis
             player_stat_best_with_props[key] = item
         else:
             current = player_stat_best[key]
+            existing_distance = odds_distance_from_standard(
+                current.get('over_odds'),
+                current.get('under_odds')
+            )
 
-            # Keep the play with the highest absolute z-score (strongest signal)
-            if abs(analysis['z_score']) > abs(current['z_score']):
+            # Keep the line with odds closest to -110/-110 (primary line)
+            if current_distance < existing_distance:
                 player_stat_best[key] = analysis
                 player_stat_best_with_props[key] = item
 
