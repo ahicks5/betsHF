@@ -1510,5 +1510,199 @@ def debug_dashboard():
                          open_plays=open_plays)
 
 
+@app.route('/props-explorer')
+def props_explorer():
+    """Explore raw prop line data in the database"""
+    session = get_session()
+
+    # Summary stats
+    total_props = session.query(PropLine).count()
+    latest_props = session.query(PropLine).filter(PropLine.is_latest == True).count()
+
+    # Get unique player+stat combinations (latest only)
+    from sqlalchemy import distinct
+    unique_player_stats = session.query(
+        PropLine.player_id, PropLine.prop_type
+    ).filter(PropLine.is_latest == True).distinct().count()
+
+    # Bookmaker breakdown
+    bookmaker_stats = []
+    bookmaker_query = session.query(
+        PropLine.bookmaker,
+        func.count(PropLine.id).label('total'),
+    ).group_by(PropLine.bookmaker).all()
+
+    for bookie, total in bookmaker_query:
+        latest = session.query(PropLine).filter(
+            PropLine.bookmaker == bookie,
+            PropLine.is_latest == True
+        ).count()
+        bookmaker_stats.append({
+            'name': bookie or 'Unknown',
+            'total': total,
+            'latest': latest,
+            'pct_of_latest': (latest / latest_props * 100) if latest_props > 0 else 0
+        })
+
+    bookmaker_stats.sort(key=lambda x: -x['latest'])
+
+    # Find multi-line cases (multiple latest lines for same player+stat)
+    multi_line_query = session.query(
+        Player.full_name,
+        PropLine.prop_type,
+        func.count(PropLine.id).label('num_lines'),
+        func.min(PropLine.line_value).label('min_line'),
+        func.max(PropLine.line_value).label('max_line')
+    ).join(
+        Player, PropLine.player_id == Player.id
+    ).filter(
+        PropLine.is_latest == True
+    ).group_by(
+        Player.full_name, PropLine.prop_type
+    ).having(
+        func.count(PropLine.id) > 1
+    ).order_by(func.count(PropLine.id).desc()).all()
+
+    multi_line_cases = []
+    for player, stat, num_lines, min_line, max_line in multi_line_query:
+        # Get bookmakers for this combo
+        bookies = session.query(PropLine.bookmaker).join(
+            Player, PropLine.player_id == Player.id
+        ).filter(
+            Player.full_name == player,
+            PropLine.prop_type == stat,
+            PropLine.is_latest == True
+        ).distinct().all()
+
+        multi_line_cases.append({
+            'player': player,
+            'stat': stat,
+            'num_lines': num_lines,
+            'min_line': min_line,
+            'max_line': max_line,
+            'bookmakers': [b[0] for b in bookies]
+        })
+
+    # Line variations (biggest spreads)
+    line_variations = []
+    for case in multi_line_cases:
+        if case['min_line'] != case['max_line']:
+            line_variations.append({
+                'player': case['player'],
+                'stat': case['stat'],
+                'min_line': case['min_line'],
+                'max_line': case['max_line'],
+                'spread': case['max_line'] - case['min_line']
+            })
+    line_variations.sort(key=lambda x: -x['spread'])
+
+    # Sample raw data
+    sample_props = session.query(PropLine, Player.full_name).join(
+        Player, PropLine.player_id == Player.id
+    ).filter(
+        PropLine.is_latest == True
+    ).order_by(Player.full_name, PropLine.prop_type).limit(100).all()
+
+    sample_data = []
+    for prop, player_name in sample_props:
+        sample_data.append({
+            'player_name': player_name,
+            'stat_type': prop.prop_type,
+            'line_value': prop.line_value,
+            'over_odds': prop.over_odds,
+            'under_odds': prop.under_odds,
+            'bookmaker': prop.bookmaker,
+            'collected_at': prop.collected_at.strftime('%m/%d %H:%M') if prop.collected_at else ''
+        })
+
+    summary = {
+        'total_props': total_props,
+        'latest_props': latest_props,
+        'unique_player_stats': unique_player_stats,
+        'multi_line_cases': len(multi_line_cases)
+    }
+
+    session.close()
+
+    return render_template('props_explorer.html',
+                         summary=summary,
+                         bookmaker_stats=bookmaker_stats,
+                         multi_line_cases=multi_line_cases,
+                         line_variations=line_variations,
+                         sample_props=sample_data)
+
+
+@app.route('/props-explorer/download')
+def props_explorer_download():
+    """Download prop data as CSV"""
+    from flask import Response
+    import csv
+    import io
+
+    session = get_session()
+
+    filter_type = request.args.get('filter', 'latest')
+
+    query = session.query(
+        PropLine,
+        Player.full_name,
+        Player.nba_player_id,
+        Game.game_date,
+        Game.nba_game_id
+    ).join(
+        Player, PropLine.player_id == Player.id
+    ).join(
+        Game, PropLine.game_id == Game.id
+    )
+
+    if filter_type == 'latest':
+        query = query.filter(PropLine.is_latest == True)
+
+    query = query.order_by(Player.full_name, PropLine.prop_type, PropLine.collected_at.desc())
+
+    results = query.all()
+
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow([
+        'player_name', 'nba_player_id', 'stat_type', 'line_value',
+        'over_odds', 'under_odds', 'bookmaker', 'is_latest',
+        'collected_at', 'game_date', 'game_id', 'prop_line_id'
+    ])
+
+    # Data rows
+    for prop, player_name, nba_player_id, game_date, nba_game_id in results:
+        writer.writerow([
+            player_name,
+            nba_player_id,
+            prop.prop_type,
+            prop.line_value,
+            prop.over_odds,
+            prop.under_odds,
+            prop.bookmaker,
+            prop.is_latest,
+            prop.collected_at.strftime('%Y-%m-%d %H:%M:%S') if prop.collected_at else '',
+            game_date.strftime('%Y-%m-%d %H:%M') if game_date else '',
+            nba_game_id,
+            prop.id
+        ])
+
+    session.close()
+
+    # Create response
+    output.seek(0)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'props_{filter_type}_{timestamp}.csv'
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

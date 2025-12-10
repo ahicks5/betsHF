@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Props Explorer - TakeFreePoints{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom: 1.5rem; color: var(--text-primary);">Props Data Explorer</h2>
+<p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Investigate raw prop line data from the database</p>
+
+<!-- Summary Stats -->
+<div class="stat-grid">
+    <div class="stat-box">
+        <h3>{{ summary.total_props }}</h3>
+        <p>Total Prop Lines</p>
+    </div>
+    <div class="stat-box">
+        <h3>{{ summary.latest_props }}</h3>
+        <p>Latest (Active)</p>
+    </div>
+    <div class="stat-box">
+        <h3>{{ summary.unique_player_stats }}</h3>
+        <p>Unique Player+Stats</p>
+    </div>
+    <div class="stat-box">
+        <h3>{{ summary.multi_line_cases }}</h3>
+        <p style="color: var(--warning);">Multi-Line Cases</p>
+    </div>
+</div>
+
+<!-- Download Button -->
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3 style="margin: 0;">Download Raw Data</h3>
+            <p style="margin: 0.25rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">Export all prop lines to CSV for analysis</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="/props-explorer/download?filter=latest" class="btn" style="background: var(--accent-green); color: #000; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600;">
+                Download Latest Props
+            </a>
+            <a href="/props-explorer/download?filter=all" class="btn" style="background: var(--bg-secondary); color: var(--text-primary); padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600; border: 1px solid var(--border);">
+                Download All Props
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Bookmaker Breakdown -->
+<div class="card">
+    <h3>Props by Bookmaker</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">How many prop lines do we have from each source?</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Bookmaker</th>
+                <th>Total Lines</th>
+                <th>Latest Lines</th>
+                <th>% of Latest</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bookie in bookmaker_stats %}
+            <tr>
+                <td style="font-weight: 600;">{{ bookie.name }}</td>
+                <td>{{ bookie.total }}</td>
+                <td>{{ bookie.latest }}</td>
+                <td>{{ "%.1f"|format(bookie.pct_of_latest) }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Multi-Line Cases (The Problem) -->
+{% if multi_line_cases %}
+<div class="card" style="border-color: var(--warning);">
+    <h3 style="color: var(--warning);">⚠️ Multiple Lines Per Player+Stat (Latest Only)</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+        These player+stat combinations have multiple "latest" prop lines from different bookmakers.
+        This explains why odds/lines vary between models - each model might pick a different bookmaker's line.
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Stat</th>
+                <th># Lines</th>
+                <th>Line Range</th>
+                <th>Bookmakers</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for case in multi_line_cases[:50] %}
+            <tr>
+                <td>{{ case.player }}</td>
+                <td>{{ case.stat }}</td>
+                <td style="color: var(--warning); font-weight: 600;">{{ case.num_lines }}</td>
+                <td>
+                    {% if case.min_line != case.max_line %}
+                    <span style="color: var(--danger);">{{ case.min_line }} - {{ case.max_line }}</span>
+                    {% else %}
+                    {{ case.min_line }}
+                    {% endif %}
+                </td>
+                <td style="font-size: 0.85rem;">{{ case.bookmakers|join(', ') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if multi_line_cases|length > 50 %}
+    <p style="margin-top: 1rem; color: var(--text-dim);">Showing first 50 of {{ multi_line_cases|length }} cases. Download CSV for full list.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Line Variations -->
+{% if line_variations %}
+<div class="card">
+    <h3>Biggest Line Variations</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+        Player+stats where bookmakers disagree the most on the line value
+    </p>
+    <table>
+        <thead>
+            <tr>
+                <th>Player</th>
+                <th>Stat</th>
+                <th>Min Line</th>
+                <th>Max Line</th>
+                <th>Spread</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for var in line_variations[:20] %}
+            <tr>
+                <td>{{ var.player }}</td>
+                <td>{{ var.stat }}</td>
+                <td>{{ var.min_line }}</td>
+                <td>{{ var.max_line }}</td>
+                <td style="color: {% if var.spread >= 1 %}var(--danger){% elif var.spread >= 0.5 %}var(--warning){% else %}var(--text-secondary){% endif %}; font-weight: 600;">
+                    {{ "%.1f"|format(var.spread) }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<!-- Sample Raw Data -->
+<div class="card">
+    <h3>Sample Raw Prop Lines</h3>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+        First 100 latest prop lines (download CSV for complete data)
+    </p>
+    <div style="overflow-x: auto;">
+        <table style="font-size: 0.85rem;">
+            <thead>
+                <tr>
+                    <th>Player</th>
+                    <th>Stat</th>
+                    <th>Line</th>
+                    <th>Over</th>
+                    <th>Under</th>
+                    <th>Book</th>
+                    <th>Collected</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prop in sample_props %}
+                <tr>
+                    <td>{{ prop.player_name }}</td>
+                    <td>{{ prop.stat_type }}</td>
+                    <td>{{ prop.line_value }}</td>
+                    <td>{{ prop.over_odds if prop.over_odds else '-' }}</td>
+                    <td>{{ prop.under_odds if prop.under_odds else '-' }}</td>
+                    <td>{{ prop.bookmaker }}</td>
+                    <td style="color: var(--text-dim);">{{ prop.collected_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
